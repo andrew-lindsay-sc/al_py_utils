@@ -2,6 +2,7 @@ from typing import get_origin
 from git import Repo
 
 class GitClient:
+    """Helper class made to simplify git interaction"""
     def __init__(self, base_path):
         self.base_path = base_path
         self.repo = self.get_repo()

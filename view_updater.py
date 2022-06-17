@@ -3,7 +3,7 @@
 
 from google.cloud import bigquery
 import argparse
-from py_utils.helpers.StaticMethods import *
+from helpers.StaticMethods import *
 
 def prepare_args(parser):
     parser.add_argument(
