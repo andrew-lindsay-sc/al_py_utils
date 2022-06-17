@@ -11,13 +11,17 @@ class BqClient:
         self.instance = bigquery.Client(project=self.project_id)
 
     all_tables_and_views_query = """
-        SELECT concat(table_schema, '.', table_name) as full_name
-        FROM region-us.INFORMATION_SCHEMA.VIEWS
+        with data as (
+            SELECT concat(table_schema, '.', table_name) as full_name
+            FROM region-us.INFORMATION_SCHEMA.VIEWS
 
-        union all
+            union all
 
-        SELECT concat(table_schema, '.', table_name) as full_name
-        FROM region-us.INFORMATION_SCHEMA.TABLES
+            SELECT concat(table_schema, '.', table_name) as full_name
+            FROM region-us.INFORMATION_SCHEMA.TABLES
+        )
+        -- unsure why but it seems we sometimes get duplicates in here
+        select distinct full_name from data
     """
 
     def manage_object(self, operation, file):
