@@ -8,6 +8,8 @@ import json
 from pathlib import Path
 import time
 from dataclasses import dataclass
+from helpers.BqClient import BqClient
+from helpers.StaticMethods import *
 
 @dataclass
 class view_info:
@@ -33,36 +35,11 @@ def validate_args(args):
     if (not args.v):
         raise Exception("No view(s) specified, exiting.")
 
-def get_bq_path():
-    home_dir = Path.home()
-    return str(home_dir) + '/Projects/mono/infrastructure/gcloud/client/bq'
-
-def prepare_bq_client(client_name):
-    project_id = "soundcommerce-client-"+client_name
-    client = bigquery.Client(project=project_id)
-    return project_id, client
-
 def prepare_bq_transfer_client(client_name):
     client = bigquery_datatransfer.DataTransferServiceClient()
     project_id = "soundcommerce-client-"+client_name
     parent = client.common_project_path(project_id)
     return client, parent
-
-def get_all_clients(ignore_clients_string):
-    ignore_clients = list()
-    if ignore_clients_string:
-        ignore_clients_temp = ignore_clients_string.split(",")
-        for ignore_client in ignore_clients_temp:
-            ignore_clients.append(ignore_client.strip())
-        
-    clients_json_path = get_bq_path()+'/../clients.json'
-    with open(clients_json_path, 'r', newline='\n') as clients_file:
-        clients_json = json.load(clients_file)
-        client_list = list()
-        for client in clients_json:
-            if len(ignore_clients) == 0 or client['client_name'] not in ignore_clients:
-                client_list.append(client['client_name'])
-        return client_list
 
 def get_all_vvws(client, datasets=[]):
     versioned_views = list()
@@ -169,7 +146,7 @@ def main(debug):
     for client in clients:
         t = time.time()
         print(f"Analyzing {client}...")
-        project_id, bq_client = prepare_bq_client(client)
+        bq_client = BqClient(client)
 
         dependencies = {}
         get_dependent_views_sql(dependencies, bq_client, views)

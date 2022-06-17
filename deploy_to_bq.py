@@ -82,7 +82,7 @@ def deploy_commit(files_by_client, clients):
         if len(clients) > 0 and client not in clients:
             continue
 
-        print(f"Deploying {client}...:")
+        print(f"Deploying {client}...")
         bq_instance = BqDeploymentClient(client)
 
         bq_instance.deploy_files(operation['modified'], 'modified')
@@ -114,6 +114,9 @@ def main():
         report_files(parser.files_by_client, clients)
         if(args.go):
             deploy_commit(parser.files_by_client, clients)
+        else:
+            print_info(f"-go was not specified, no changes will be made, exiting...")
+            return
 
     # Restore original state
     git.switch_to(git.original_head)
