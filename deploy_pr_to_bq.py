@@ -2,6 +2,7 @@
 
 import argparse
 
+from helpers.CommitFileParser import *
 from helpers.GitClient import *
 from helpers.PrintColors import *
 from helpers.BqDeploymentClient import *
@@ -29,52 +30,6 @@ def handle_args():
     validate_args(args)  
 
     return args
-
-def get_global_updates(changed_files):
-    """
-        dict(str,list<str>) -> dict(str, dict(str,list<str>))
-        Identifies any modifications which affect all clients and returns this in the format expected by parse_clients.
-    """
-    files_by_client = { client : {'modified': list(), 'deleted': list()} for client in get_all_clients() }
-    
-    global_count = 0
-
-    for operation, files in changed_files.items():
-        for file in files:
-            path_parts = file.replace('infrastructure/gcloud/client/bq/', '').split('/')
-            # If the file is 3 or less levels beyond bq folder, it must be a global update (e.g. "ext/view/view_name.sql")
-            if len(path_parts) <= 3:
-                global_count += 1
-                for client in files_by_client:
-                    files_by_client[client][operation].append(file)    
-    return files_by_client, global_count
-
-def parse_clients(changed_files):
-    """
-        dict(str,list<str>) -> dict(str, dict(str,list<str>))
-        Transforms the dictionary of changed_files to be broken up by client.
-    """
-    files_by_client, global_count = get_global_updates(changed_files)
-
-    # overwrite to empty dict if no globals were found
-    if global_count == 0:
-        files_by_client = {}
-
-    for operation, files in changed_files.items():
-        for file in files:                    
-            # expected path parts: client, dataset, object type, file name
-            path_parts = file.replace('infrastructure/gcloud/client/bq/', '').split('/')
-            # If the file is 3 or less levels beyond bq folder, it must be a global update (e.g. "ext/view/view_name.sql")
-            if len(path_parts) <= 3:
-                continue
-
-            client = path_parts[0]
-            if client not in files_by_client:
-                files_by_client[client] = {'modified': list(), 'deleted': list()}
-
-            files_by_client[client][operation].append(file)
-
-    return files_by_client
 
 def print_file_info(files, operation):
     """
@@ -106,24 +61,6 @@ def report_files(report_files, clients):
 
     print(f"Total files to be deployed: {file_count}")
 
-def parse_changed_files(merge_commit):
-    """
-        Parses files modified by the provided merge_commit and returns all SQL files.
-    """
-    changed_files = {'modified': list(), 'deleted': list()}
-
-    for file, detail in merge_commit.stats.files.items():
-        if file[-4:] != '.sql':
-            continue
-
-        if detail["lines"] == detail["deletions"] and detail["insertions"] == 0:
-            changed_files['deleted'].append(file)
-        # We don't care whether the file was added or updated, it makes no functional difference 
-        else:
-            changed_files['modified'].append(file)
-
-    return changed_files
-
 def deploy_commit(files_by_client, clients):
     """
         Orchestrates deployment of all identified BQ modifications in the commit.
@@ -148,18 +85,16 @@ def main():
     git.switch_to(git.master)
 
     merge_commit = git.get_commit_by_sha(args.sha)
-    changed_files = parse_changed_files(merge_commit)
+    parser = CommitFileParser(merge_commit)
 
-    if len(changed_files['deleted']) == 0 and len(changed_files['modified']) == 0:
+    if len(parser.changed_files['deleted']) == 0 and len(parser.changed_files['modified']) == 0:
         print("No SQL files exist in this commit, exiting...")
     else:
-        files_by_client = parse_clients(changed_files)
-
         clients = arg_to_list(args.c)
 
-        report_files(files_by_client, clients)
+        report_files(parser.files_by_client, clients)
         if(args.go):
-            deploy_commit(files_by_client, clients)
+            deploy_commit(parser.files_by_client, clients)
 
     # Restore original state
     git.switch_to(git.original_head)

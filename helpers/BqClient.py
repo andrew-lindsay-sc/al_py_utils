@@ -1,7 +1,7 @@
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 from helpers.PrintColors import *
-from helpers.StaticMethods import print_warn
+from helpers.StaticMethods import print_warn, print_info
 
 class BqClient:
     """Helper class to wrap bigQuery client initialization and operations"""
@@ -57,14 +57,17 @@ class BqClient:
                 except NotFound:
                     self.instance.create_table(
                         table=to_modify
-                    )
+                    )                
+                return f"({object_type}) {dataset}.{object_name} has been {operation}"
+                
             elif operation == 'deleted' and object_type != 'table': #object_type check is redundant, just being explicit
-                # Delete the view, if it doesn't exist, oh well, mission accomplished anyway
-                self.instance.delete_table(table = to_modify, not_found_ok=True)
+                try:
+                    self.instance.delete_table(table = to_modify)
+                except NotFound:
+                    return f"{object_name} does not exist and will be skipped."
         else:
             raise NotImplementedError("Only tables and views are supported at this time")
 
-        return f"({object_type}) {dataset}.{object_name} has been {operation}"
     
     def check_objects_exist(self, objects):
         """

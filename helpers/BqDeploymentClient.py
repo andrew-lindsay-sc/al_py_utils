@@ -25,8 +25,7 @@ class BqDeploymentClient(BqClient):
             Orchestrator for deployment of provided list of objects
         """
         for file in files: 
-            result = self.manage_object(operation, file)
-            print(f"\t{result}")
+            print_info(self.manage_object(operation, file))
 
     def verify_drops(self, deletions):
         """
@@ -85,3 +84,4 @@ class BqDeploymentClient(BqClient):
         print(f"Validating deployment for {self.client_name}...")
         self.validate_deletions(list(paths_to_sql_names(deleted)))
         self.validate_modifications(list(paths_to_sql_names(modified)))
+        

@@ -80,3 +80,11 @@ def print_warn(message):
     """
     print_color("\tWarning:", PrintColors.WARNING, end=' ')
     print(message)
+
+def print_info(message):
+    """
+        (Str) -> None
+        Prints "Info: " in cyan, followed by the provided message.
+    """
+    print_color("\tInfo:", PrintColors.OKCYAN, end=' ')
+    print(message)
