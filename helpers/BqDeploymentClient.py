@@ -1,11 +1,11 @@
-import BqClient
-from StaticMethods import *
+from helpers.BqClient import *
+from helpers.StaticMethods import *
 
 class BqDeploymentClient(BqClient):
     """Helper class (child of BqClient) designed to help with deployment to BQ."""
     def __init__(self, client_name):
-        BqClient.__init__(client_name)
-        before_state = self.get_views_and_tables()
+        BqClient.__init__(self, client_name)
+        self.before_state = self.get_views_and_tables()
 
     def get_views_and_tables(self):
         """
@@ -17,7 +17,7 @@ class BqDeploymentClient(BqClient):
         for result in results:
             views_and_tables.append(result.full_name)
 
-        return views_and_tables()
+        return views_and_tables
 
     def deploy_files(self, files, operation):
         """
@@ -46,13 +46,13 @@ class BqDeploymentClient(BqClient):
             Validates that all expected drops happened correctly.
         """
         after_state = self.get_views_and_tables()
-        delta = (self.before_state - after_state).sort()
-        deletions.sort()
+        delta = (set(self.before_state) - set(after_state))
+        deleted_set = set(deletions)
 
-        if len(delta - deletions) == 0:
+        if len(delta - deleted_set) == 0:
             print_success("No collateral drops detected.")
         else:
-            for fail in delta - deletions:
+            for fail in delta - deleted_set:
                 print_fail(f"{fail} was not in this commit and is now missing.")
 
     def validate_deletions(self, deletions):

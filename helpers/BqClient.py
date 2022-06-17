@@ -1,7 +1,7 @@
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
-from PrintColors import *
-from StaticMethods import print_warn
+from helpers.PrintColors import *
+from helpers.StaticMethods import print_warn
 
 class BqClient:
     """Helper class to wrap bigQuery client initialization and operations"""
@@ -26,13 +26,13 @@ class BqClient:
             Performs the specified BQ operation on the specified file.
         """
         file_parts = file.split('/')
-        file_name = file_parts[-1]
-        to_modify = bigquery.Table(self.project_id+'.'+file_name)
+        object_name = file_parts[-1][:-4]
         dataset = file_parts[-3].strip()
+        to_modify = bigquery.Table(self.project_id+'.'+dataset+'.'+object_name)
         object_type = file_parts[-2]
 
         if operation == 'deleted' and object_type == 'table':
-            print_warn(f"Table drops must be performed manually ({file_name}).")
+            print_warn(f"Table drops must be performed manually ({object_name}).")
 
         if object_type in ['table', 'view']:
             if operation == 'modified':
@@ -60,7 +60,7 @@ class BqClient:
         else:
             raise NotImplementedError("Only tables and views are supported at this time")
 
-        return f"({object_type}) {dataset}.{file_name} has been {operation}"
+        return f"({object_type}) {dataset}.{object_name} has been {operation}"
     
     def check_objects_exist(self, objects):
         """

@@ -1,7 +1,7 @@
 
 import json
 from pathlib import Path
-from PrintColors import *
+from helpers.PrintColors import *
 
 def get_mono_path():
     """
