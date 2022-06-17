@@ -43,6 +43,9 @@ def arg_to_list(arg, seperator = ','):
         Tokenizes the provided argument string into a list based on separator (default ",")
     """
     arg_list = list()
+    if not arg:
+        return arg_list
+        
     for arg_value in arg.split(seperator):
         arg_list.append(arg_value.strip())
     
@@ -54,11 +57,8 @@ def paths_to_sql_names(paths):
         Converts a list of file paths into a list of SQL object names.
     """
     for path in paths:
-        if not '/' in path:
-            yield path
-        else:
-            parts = path.split('/')        
-            yield f"{parts[-3]}.{parts[-1][:-4]}"
+        parts = path.split('/')        
+        yield f"{parts[-3]}.{parts[-1][:-4]}"
 
 def print_success(message):
     """
@@ -91,3 +91,16 @@ def print_info(message):
     """
     print_color("\tInfo:", PrintColors.OKCYAN, end=' ')
     print(message)
+
+def object_name_to_type(name):
+    if '_' not in name:
+        return 'unknown'
+
+    object_prefix = name.split('_')[0]
+    if object_prefix in ('vvw', 'vw'):
+            return 'view'
+    elif object_prefix == 'mv':
+        return 'materialized view'
+    else:
+        return 'unknown'
+    # TODO: make this less bad

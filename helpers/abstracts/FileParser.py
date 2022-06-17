@@ -13,3 +13,11 @@ class FileParser(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def parse_clients(self):
         pass
+
+    # @abc.abstractmethod
+    # def print_file_info(self):
+    #     pass
+
+    # @abc.abstractmethod
+    # def report_files(self):
+    #     pass

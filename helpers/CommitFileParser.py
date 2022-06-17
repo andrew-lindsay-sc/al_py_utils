@@ -5,7 +5,6 @@ class CommitFileParser(FileParser):
     def __init__(self, commit):
         self.commit = commit
         self.changed_files = self.parse_changed_files()
-        self.files_by_client = self.parse_clients()
 
     def parse_changed_files(self):
         """

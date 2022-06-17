@@ -42,14 +42,21 @@ def print_file_info(files, operation):
         Print handler which displays a list of files and the operation done to them.
     """
     for file in files:
-        file_parts = file.split('/')
+        if '/' in file:
+            file_parts = file.split('/')
 
-        object_name = file_parts[-1].replace('.sql', '')
-        object_type = file_parts[-2]
-        dataset = file_parts[-3]
+            object_name = file_parts[-1].replace('.sql', '')
+            object_type = file_parts[-2]
+            dataset = file_parts[-3]
+            print_warn(f"({object_type}) {dataset}.{object_name} will be {operation}")
 
-        print(f"\t({object_type}) {dataset}.{object_name} ", end='')
-        print_color(f"will be {operation}", PrintColors.WARNING)
+        elif '.' in file:
+            if file.split('.')[1].split('_')[0] in ('vw', 'vvw'):
+                object_type = 'view'
+            else:
+                object_type = 'unknown'
+
+            print_warn(f"({object_type}) {file} will be {operation}")
 
 def report_files(report_files, clients):
     """

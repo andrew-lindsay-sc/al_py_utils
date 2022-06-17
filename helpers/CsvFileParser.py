@@ -1,6 +1,9 @@
 from requests import head
+from helpers.StaticMethods import print_warn
+from helpers.StaticMethods import get_bq_path, object_name_to_type
 from helpers.abstracts.FileParser import FileParser
 import copy
+import os.path
 
 class CsvFileParser(FileParser):
     def __init__(self, file):
@@ -13,6 +16,7 @@ class CsvFileParser(FileParser):
         print('"sc", "modified", "dataset.vw_view2"')
 
     def parse_clients(self):
+        bq_path = get_bq_path()
         files_by_client = dict()
         operations = {'modified': list(), 'deleted': list()}
         with open(self.file, 'r') as infile:
@@ -34,12 +38,20 @@ class CsvFileParser(FileParser):
 
                 client_name = clean_columns[0]
                 operation = clean_columns[1]
-                object_name = clean_columns[2]
+                full_object_name = clean_columns[2]
+                dataset = full_object_name.split('.')[0]
+                object_name = full_object_name.split('.')[1]
+                object_type = object_name_to_type(object_name)
+
+                file_path = f"{bq_path}/{client_name}/{dataset}/{object_type}/{object_name}.sql"
+                if '_0.sql' not in file_path and not os.path.isfile(file_path):
+                    print_warn(f"Failed to resolve file path for {client_name}:{object_name}, skipping...")
+                    continue
 
                 # initialize empty operations dictionary if client is not present in files_by_client
                 if client_name not in files_by_client:
                     files_by_client[client_name] = copy.deepcopy(operations)
 
-                (files_by_client[client_name])[operation].append(object_name)
+                (files_by_client[client_name])[operation].append(file_path)
 
         return files_by_client

@@ -40,6 +40,10 @@ class BqClient:
 
         if object_type in ['table', 'view']:
             if operation == 'modified':
+                if '_0.sql' in file:
+                    # strip out the client name for _0s as we should be using the 
+                    #   standardized version
+                    file = file.replace(f"{self.client_name}/", "")
                 with open(file, 'r') as f:
                     definition = f.read()
 
@@ -58,8 +62,8 @@ class BqClient:
                     self.instance.create_table(
                         table=to_modify
                     )                
-                return f"({object_type}) {dataset}.{object_name} has been {operation}"
-                
+                    return f"({object_type}) {dataset}.{object_name} has been created."
+
             elif operation == 'deleted' and object_type != 'table': #object_type check is redundant, just being explicit
                 try:
                     self.instance.delete_table(table = to_modify)
@@ -68,6 +72,7 @@ class BqClient:
         else:
             raise NotImplementedError("Only tables and views are supported at this time")
 
+        return f"({object_type}) {dataset}.{object_name} has been {operation}"
     
     def check_objects_exist(self, objects):
         """
