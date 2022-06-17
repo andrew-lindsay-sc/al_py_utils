@@ -54,8 +54,11 @@ def paths_to_sql_names(paths):
         Converts a list of file paths into a list of SQL object names.
     """
     for path in paths:
-        parts = path.split('/')
-        yield f"{parts[-3]}.{parts[-1][:-4]}"
+        if not '/' in path:
+            yield path
+        else:
+            parts = path.split('/')        
+            yield f"{parts[-3]}.{parts[-1][:-4]}"
 
 def print_success(message):
     """

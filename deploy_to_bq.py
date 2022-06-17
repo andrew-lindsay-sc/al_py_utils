@@ -3,22 +3,28 @@
 import argparse
 
 from helpers.CommitFileParser import *
+from helpers.CsvFileParser import *
 from helpers.GitClient import *
 from helpers.PrintColors import *
 from helpers.BqDeploymentClient import *
 from helpers.StaticMethods import *
+from helpers.abstracts.FileParser import FileParser
 
 def prepare_args(parser):
     parser.add_argument(
-        '-sha', help='(Required) Specify the SHA of a PR merge commit to deploy')
+        '-sha', help='(Optional) Specify the SHA of a PR merge commit to deploy')
+    parser.add_argument(
+        '-file', help='(Optional) Specify a file of modifications to deploy, use -exampleFile for usage')
+    parser.add_argument(
+        '-exampleFile', action='store_true', help='(Optional) Displays expected format for a modification file, then exits')
     parser.add_argument(
         '-go', action='store_true', help='(Optional) Deploy the specified commit, otherwise changes will be reported but not deployed')
     parser.add_argument(
         '-c', help='(Optional) Restrict clients to be modified to the specified list (e.g. "truthbar, rainbow2"')
 
 def validate_args(args):
-    if (not args.sha):
-        raise Exception("SHA is required, use -sha to set.")
+    if (not (args.sha or args.file)):
+        raise Exception("At least one of -sha or -file is required.")
 
 def handle_args():
     """
@@ -84,11 +90,17 @@ def main():
     # Work from Master as we should only be deployed merged work
     git.switch_to(git.master)
 
-    merge_commit = git.get_commit_by_sha(args.sha)
-    parser = CommitFileParser(merge_commit)
+    if args.exampleFile:
+        CsvFileParser('').print_example_file()
+        return
+    elif args.sha:
+        merge_commit = git.get_commit_by_sha(args.sha)
+        parser = CommitFileParser(merge_commit)
+    elif args.file:
+        parser = CsvFileParser(args.file)    
 
-    if len(parser.changed_files['deleted']) == 0 and len(parser.changed_files['modified']) == 0:
-        print("No SQL files exist in this commit, exiting...")
+    if len(parser.files_by_client) == 0:
+        print("No SQL files found in provided source, exiting...")
     else:
         clients = arg_to_list(args.c)
 
