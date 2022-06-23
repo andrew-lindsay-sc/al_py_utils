@@ -4,6 +4,7 @@
 from google.cloud import bigquery
 import argparse
 from helpers.StaticMethods import *
+from helpers.BqClient import *
 
 def prepare_args(parser):
     parser.add_argument(
@@ -23,12 +24,7 @@ def validate_args(args):
         if not (response.strip().lower() == 'y' or response.strip().lower() == ''):            
             raise Exception("Invalid response, exiting.")
 
-def prepare_bq_client(client_name):
-    project_id = "soundcommerce-client-"+client_name
-    client = bigquery.Client(project=project_id)
-    return client
-
-def get_view_defs(views):
+def read_view_defs(views):
     view_defs = dict()
     for view in views:
         view_file_name = get_bq_path()+"/"+view.replace(".", "/view/")+".sql"
@@ -41,20 +37,15 @@ def update_views(view_string, client_string, ignore_clients_string):
     if not(client_string):
         clients = get_all_clients(ignore_clients_string)
     else:
-        clients_temp = client_string.split(",")
-        clients = list()
-        for client in clients_temp:
-            clients.append(client.strip())
+        clients = arg_to_list(client_string)
 
-    views_temp = view_string.split(",")
-    views = list()
-    for view in views_temp:
-        views.append(view.strip())
+    views = arg_to_list(view_string)
+    view_defs = read_view_defs(views)
 
-    view_defs = get_view_defs(views)
-
-    for client in clients:
-        bq_client = prepare_bq_client(client)
+    files = dict.fromkeys(views, list())
+    for client, file_list in files:
+        
+        bq_client = BqClient(client)
         print("Updating "+client)
 
         project_name = 'soundcommerce-client-'+client

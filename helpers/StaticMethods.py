@@ -45,7 +45,7 @@ def arg_to_list(arg, seperator = ','):
     arg_list = list()
     if not arg:
         return arg_list
-        
+
     for arg_value in arg.split(seperator):
         arg_list.append(arg_value.strip())
     
@@ -60,36 +60,36 @@ def paths_to_sql_names(paths):
         parts = path.split('/')        
         yield f"{parts[-3]}.{parts[-1][:-4]}"
 
-def print_success(message):
+def print_success(message, indents = 1):
     """
         (Str) -> None
         Prints "Success: " in green, followed by the provided message.
     """
-    print_color("\tSuccess:", PrintColors.OKGREEN, end=' ')
+    print_color(('\t'*indents)+"Success:", PrintColors.OKGREEN, end=' ')
     print(message)
 
-def print_fail(message):
+def print_fail(message, indents = 1):
     """
         (Str) -> None
         Prints "Fail: " in red, followed by the provided message.
     """
-    print_color("\tFail:", PrintColors.FAIL, end=' ')
+    print_color(('\t'*indents)+"Fail:", PrintColors.FAIL, end=' ')
     print(message)
 
-def print_warn(message):
+def print_warn(message, indents = 1):
     """
         (Str) -> None
         Prints "Warning: " in yellow, followed by the provided message.
     """
-    print_color("\tWarning:", PrintColors.WARNING, end=' ')
+    print_color(('\t'*indents)+"Warning:", PrintColors.WARNING, end=' ')
     print(message)
 
-def print_info(message):
+def print_info(message, indents = 1):
     """
         (Str) -> None
         Prints "Info: " in cyan, followed by the provided message.
     """
-    print_color("\tInfo:", PrintColors.OKCYAN, end=' ')
+    print_color(('\t'*indents)+"Info:", PrintColors.OKCYAN, end=' ')
     print(message)
 
 def object_name_to_type(name):
