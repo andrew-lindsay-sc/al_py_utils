@@ -3,6 +3,8 @@
 import argparse
 from google.cloud import bigquery
 
+from helpers.BqClient import BqClient
+
 def prepare_args(parser):
     parser.add_argument(
         '-c', help='(Required) Specify a Client, with no sq value this script shows the names of all SQs')
@@ -110,7 +112,7 @@ def main():
     args = parser.parse_args()
     validate_args(args)     
 
-    client = prepare_bq_client(args.c)
+    client = BqClient(args.c)
 
     validate_core_migration(client, args.c)
     validate_ext_cleanup(client)

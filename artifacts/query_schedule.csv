@@ -1,0 +1,23 @@
+query_display_name, schedule
+Execute ext proc_process_cuids, every day 16:30
+Materialize Staging mv_line_items, every day 16:30
+Materialize Staging vw_order_customer_loyalty, every day 16:30
+Materialize vw_ecom_order_ship_bill_address, every day 16:30
+Materialize vw_ecom_sales_transactions, every day 16:30
+Materialize vw_fulfillments, every day 16:30
+Materialize looker sc_sku_images, every day 16:50
+Materialize looker sc_inventory_by_location, every day 16:50
+Materialize looker sc_sku_categories, every day 16:50
+Materialize looker sc_products, every day 16:50
+Materialize core orders_current (proc), every day 16:50
+Materialize core mv_customer_order_metrics, every day 17:15
+Execute ext proc_orders_base, every day 17:15
+Materialize looker sc_adspend_order_attribution, every day 17:40
+Materialize looker sc_orders, every day 17:40
+Materialize looker sc_order_fulfillments, every day 17:40
+Materialize looker sc_customer_metrics_raw, every day 17:40
+Materialize looker sc_sku_mapping_gaps, every day 17:40
+Materialize looker sc_customers, every day 18:00
+Materialize looker sc_order_metrics, every day 18:00
+Materialize looker sc_adspend_order_attribution_agg, every day 18:00
+Materialize looker sc_order_items, every day 18:15
