@@ -1,23 +1,24 @@
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 from helpers.PrintColors import *
-from helpers.StaticMethods import print_warn, print_info
+from helpers.StaticMethods import *
 
 class BqClient:
     """Helper class to wrap bigQuery client initialization and operations"""
-    def __init__(self, client_name):
-        self.project_id = "soundcommerce-client-"+client_name
+    def __init__(self, client_name, skip_instance = False):
+        self.project_id = client_name if 'sandbox' in client_name else "soundcommerce-client-"+client_name
         self.client_name = client_name
-        self.instance = bigquery.Client(project=self.project_id)
+        if not skip_instance:
+            self.instance = bigquery.Client(project=self.project_id)
 
     all_tables_and_views_query = """
         with data as (
-            SELECT concat(table_schema, '.', table_name) as full_name
+            SELECT concat(table_schema, '.', table_name) as full_name, table_schema
             FROM region-us.INFORMATION_SCHEMA.VIEWS
 
             union all
 
-            SELECT concat(table_schema, '.', table_name) as full_name
+            SELECT concat(table_schema, '.', table_name) as full_name, table_schema
             FROM region-us.INFORMATION_SCHEMA.TABLES
         )
         -- unsure why but it seems we sometimes get duplicates in here
@@ -38,7 +39,7 @@ class BqClient:
         if operation == 'deleted' and object_type == 'table':
             print_warn(f"Table drops must be performed manually ({object_name}).")
 
-        if object_type in ['table', 'view']:
+        if object_type in ['table', 'view', 'schema']:
             if operation == 'modified':
                 if '_0.sql' in file:
                     # strip out the client name for _0s as we should be using the 
@@ -64,7 +65,7 @@ class BqClient:
                     )                
                     return f"({object_type}) {dataset}.{object_name} has been created."
 
-            elif operation == 'deleted' and object_type != 'table': #object_type check is redundant, just being explicit
+            elif operation == 'deleted':
                 try:
                     self.instance.delete_table(table = to_modify)
                 except NotFound:
@@ -100,5 +101,30 @@ class BqClient:
             )
 
         """
-        query = query.replace('[replace_me]', ',\n\t'.join(objects))
+        quoted_objects = list()
+        for obj in objects:
+            quoted_objects.append(f"'{obj}'" if not is_quoted(obj) else obj)
+
+        query = query.replace('[replace_me]', ',\n\t'.join(quoted_objects))
         return self.instance.query(query).result()
+
+    def get_views_and_tables(self, datasets: list[str] = []):
+        """
+            (optional list[str]) -> list[str]
+            Returns all views and tables currently present in BQ for the associated client
+        """
+        query = BqClient.all_tables_and_views_query
+        if len(datasets) > 0:
+            query += '\nWHERE table_schema in (\n\t'
+            quoted_datasets = list()
+            for dataset in datasets:
+                quoted_datasets.append(f"'{dataset}'")
+            query += (",\n\t".join(quoted_datasets))
+            query += '\n)'
+
+        results = self.instance.query(query).result()
+        views_and_tables = list()
+        for result in results:
+            views_and_tables.append(result.full_name)
+
+        return views_and_tables

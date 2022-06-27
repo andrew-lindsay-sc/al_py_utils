@@ -1,9 +1,65 @@
 # pip install pandas
 
 import argparse
+from distutils.command.clean import clean
+import os
 from google.cloud import bigquery
+import subprocess
+from helpers.StaticMethods import *
 
+from helpers.BqTransferClient import BqTransferClient
 from helpers.BqClient import BqClient
+from helpers.BqDeploymentClient import BqDeploymentClient
+# from google.cloud.bigquery_datatransfer_v1.types.TransferState
+from google.cloud.bigquery_datatransfer_v1.types import TransferState
+
+# This list is all objects created by provision-funnel before changes for ACC-3879
+all_funnel_objects = [
+    'client_directaccess.sc_marketing_campaign_performance',
+    'client_directaccess.sc_adspend_order_attribution',
+    'core.mv_marketing_source_medium_override',
+    'core.vvw_marketing_funnel_data_1',
+    'core.vw_marketing_campaign_mapping',
+    'core.vw_marketing_source_medium_override',
+    'ext.gs_marketing_source_medium_override',
+    'ext.mv_marketing_source_medium_override',
+    'ext.vvw_adspend_order_attribution_0',
+    'ext.vvw_marketing_campaign_all_0',
+    'ext.vvw_marketing_campaign_mapping_0',
+    'ext.vvw_marketing_campaign_override_0',
+    'ext.vvw_marketing_campaign_performance_0',
+    'ext.vvw_marketing_funnel_data_0',
+    'ext.vvw_marketing_funnel_data_1',
+    'ext.vvw_marketing_order_attribution_0',
+    'ext.vvw_marketing_source_medium_all_0',
+    'ext.vvw_marketing_source_medium_mapping_0',
+    'ext.vw_adspend_order_attribution',
+    'ext.vw_marketing_adspend',
+    'ext.vw_marketing_campaign_all',
+    'ext.vw_marketing_campaign_mapping',
+    'ext.vw_marketing_campaign_override',
+    'ext.vw_marketing_campaign_performance',
+    'ext.vw_marketing_funnel_data',
+    'ext.vw_marketing_order_attribution',
+    'ext.vw_marketing_orders',
+    'ext.vw_marketing_source_medium_all',
+    'ext.vw_marketing_source_medium_mapping',
+    'ext.vw_marketing_source_medium_mapping_with_stats',
+    'ext.vw_marketing_source_medium_override',
+    'ext.vw_order_attribution',
+    'funnel.all_normalized_export_view',
+    'looker.sc_adspend_order_attribution',
+    'looker.sc_marketing_campaign_performance',
+    'looker.vw_base_adspend_order_attribution'
+]
+
+provision_funnel_objects = [        
+    "ext.gs_marketing_source_medium_override",
+    "core.mv_marketing_source_medium_override",
+    "core.vw_marketing_source_medium_override",
+]
+
+provision_client_objects = set(all_funnel_objects) - set(provision_funnel_objects)
 
 def prepare_args(parser):
     parser.add_argument(
@@ -18,104 +74,153 @@ def prepare_bq_client(client_name):
     client = bigquery.Client(project=project_id)
     return client
 
-def validate_core_migration(bq_client, client_name):
-    views_to_validate = [
-        "vw_marketing_adspend",
-        "vw_marketing_campaign_all",
-        "vw_marketing_campaign_mapping",
-        "vw_marketing_order_attribution",
-        "vw_marketing_campaign_override",
-        "vw_marketing_source_medium_mapping",
-        "vw_marketing_source_medium_mapping_with_stats",
-        "vw_marketing_source_medium_override"
-    ]
+def validate_provision_client(bq_client: BqDeploymentClient) -> bool:
+    objects_to_validate = provision_client_objects
+    existing_objects = bq_client.check_objects_exist(objects_to_validate)
 
-    mvs_to_validate = [
-        "mv_marketing_campaign_mapping",
-        "mv_marketing_source_medium_override",
-    ]
-    validation_query = f'''
-        SELECT concat(table_schema,'.',table_name) as full_name
-        FROM region-us.INFORMATION_SCHEMA.VIEWS
-        WHERE table_schema = 'core' and table_name in (
-            "{'", "'.join(views_to_validate)}"
-        )
-        UNION ALL
-        SELECT concat(table_schema,'.',table_name) as full_name
-        FROM region-us.INFORMATION_SCHEMA.TABLES
-        WHERE table_schema = 'core' and table_name in (
-            "{'", "'.join(mvs_to_validate)}"
-        )
-    '''
-    try:
-        result = list((bq_client.query(validation_query).to_dataframe())['full_name'])
-
-        all_objects_to_validate = []
-        for item in views_to_validate:
-            all_objects_to_validate.append('core.'+item)
-
-        for item in mvs_to_validate:
-            all_objects_to_validate.append('core.'+item)
-
-        missing_views = set(all_objects_to_validate) - set(result)
-        if len(missing_views) > 0:
-            missing_views_str = ', '.join(missing_views)
-            print(f"The following core views are missing: {missing_views_str}")
-            return False
-            
-    except Exception as e:
-        print(f"Failure validating created core views, exception:\n{e}")
+    missing_views = set(objects_to_validate) - set(existing_objects)
+    if len(missing_views) > 0:
+        missing_views_str = ',\n\t'.join(missing_views)
+        print_fail(f"The following objects are missing:\n\t{missing_views_str}")
         return False
     
+    print_success("All expected provision client objects are present.")
     return True
 
-def validate_ext_cleanup(bq_client):
-    validation_query = '''
-        SELECT concat(table_schema,'.',table_name) as full_name
-        FROM region-us.INFORMATION_SCHEMA.VIEWS
-        WHERE table_schema = 'ext' and table_name in (
-            "vvw_baskets_0",
-            "vw_marketing_adspend",
-            "vw_marketing_campaign_all",
-            "vw_marketing_campaign_mapping",
-            "vw_marketing_order_attribution",
-            "vw_marketing_source_medium_mapping",
-            "vw_marketing_source_medium_mapping_with_stats",
-            "vw_marketing_source_medium_override",
-            "mv_marketing_campaign_mapping",
-            "mv_marketing_source_medium_override",
-            "vvw_marketing_adspend_0",
-            "vw_marketing_campaign_all_0",
-            "vw_marketing_campaign_mapping_0",
-            "vw_marketing_order_attribution_0",
-            "vw_marketing_campaign_override_0",
-            "vw_marketing_source_medium_mapping_0",
-            "vw_marketing_source_medium_override_0"
-        )
-    '''
-    try:
-        result = bq_client.query(validation_query).to_dataframe()
-        unnested_results = list(result['full_name'])
+def validate_ext_cleanup(bq_client: BqDeploymentClient) -> bool:
+    objects_to_validate = [
+        "ext.vw_marketing_adspend",
+        "ext.vw_marketing_campaign_all",
+        "ext.vw_marketing_campaign_mapping",
+        "ext.vw_marketing_order_attribution",
+        "ext.vw_marketing_source_medium_mapping",
+        "ext.vw_marketing_source_medium_mapping_with_stats",
+        "ext.vw_marketing_source_medium_override",
+        "ext.mv_marketing_campaign_mapping",
+        "ext.mv_marketing_source_medium_override",
+        "ext.vvw_marketing_adspend_0",
+        "ext.vw_marketing_campaign_all_0",
+        "ext.vw_marketing_campaign_mapping_0",
+        "ext.vw_marketing_order_attribution_0",
+        "ext.vw_marketing_campaign_override_0",
+        "ext.vw_marketing_source_medium_mapping_0",
+        "ext.vw_marketing_source_medium_override_0"
+    ]
 
-        status = len(unnested_results) == 0
-        if not status:
-            remaining_views = ', '.join(unnested_results)
-            print(f"Failure - These views still exist: {remaining_views}")
-        return status
-    except Exception as e:
-        print(f"Failure validating cleanup, exception: {e}")
+    existing_objects = bq_client.check_objects_exist(objects_to_validate)
+    
+    is_success = len(existing_objects) == 0
+    if not is_success:
+        remaining_views = ',\n\t'.join(existing_objects)
+        print(f"Failure - These objects still exist:\n\t{remaining_views}")
+
+    print_success("All expected migrated ext views were removed.")
+    return is_success
+
+def validate_provision_funnel(bq_client: BqDeploymentClient) -> bool:
+    objects_to_validate = provision_funnel_objects
+    existing_objects = bq_client.check_objects_exist(objects_to_validate)
+
+    missing_views = set(objects_to_validate) - set(existing_objects)
+    if len(missing_views) > 0:
+        missing_views_str = ',\n\t'.join(missing_views)
+        print(f"The following funnel objects are missing:\n\t{missing_views_str}")
+        return False
+    
+    transfer_client = BqTransferClient(bq_client.client_name)
+    funnel_transfer_names = [
+        'Materialize Core mv_marketing_source_medium_override',
+    ]
+    funnel_transfers = \
+        list(
+            filter(
+                lambda tc: tc.display_name in funnel_transfer_names, 
+                transfer_client.get_transfer_configs()
+            )
+        )
+
+    if len(funnel_transfers) == 0:
+        print_fail(f'Scheduled Query `{funnel_transfer_names[0]}` was not deployed')
+    elif len(funnel_transfers) == 1:
+        if not funnel_transfers[0].state == TransferState.RUNNING:
+            print_warn(f"Scheduled query `{funnel_transfers[0].display_name}` was deployed but has not completed. See BQ console.")
+            return False
+        if not funnel_transfers[0].state == TransferState.FAILED:
+            print_warn(f"Scheduled query `{funnel_transfers[0].display_name}` was deployed but failed to run. See BQ console.")
+            return False
+        else:
+            print_success(f"Scheduled query `{funnel_transfers[0].display_name}` was deployed successfully.")
+    else:
+        print_fail("Multiple SQ matches were found, this should not happen.")
         return False
 
-def main():
+    print_success("All expected provision funnel objects are present.")
+    return True
+
+def objects_to_paths(objects, client_name):
+    file_paths = []
+    for obj in objects:
+        if 'mv_' in obj or 'gs_' in obj:
+            obj_type = 'schema'
+        else:
+            obj_type = 'view'
+        file_paths.append(f"{get_bq_path()}/{client_name}/{obj.replace('.',f'/{obj_type}/')}.sql")
+
+    return file_paths
+
+def uninstall_funnel(bq_client: BqDeploymentClient) -> bool:
+    funnel_changes = {'deleted': objects_to_paths(all_funnel_objects, bq_client.client_name)}
+    bq_client.deploy_files(funnel_changes['deleted'], 'deleted')
+    bq_client.validate_deployment(list(), funnel_changes['deleted'])
+
+    transfer_client = BqTransferClient(bq_client.client_name)
+    funnel_transfer_names = [
+        'Materialize Looker sc_adspend_order_attribution',
+        'Materialize Looker sc_marketing_campaign_performance',
+        'Materialize ext mv_marketing_source_medium_override',
+        'Materialize Core mv_marketing_source_medium_override'
+    ]
+    funnel_transfers = \
+        list(
+            filter(
+                lambda tc: tc.display_name in funnel_transfer_names, 
+                transfer_client.get_transfer_configs()
+            )
+        )
+    transfer_client.delete_transfers(funnel_transfers)
+
+# def provision_client(client):
+#     os.chdir(get_bq_path())
+#     os.system(f"./provision-client.sh --all {client} > provision_client_log_{client}.txt")
+
+def provision_client(bq_client: BqDeploymentClient):
+    to_deploy = {'modified', objects_to_paths(provision_client_objects, bq_client.client_name)}
+    bq_client.deploy_files(to_deploy['modified'], 'modified', True)
+    bq_client.validate_deployment(list(), to_deploy['modified'])
+
+def provision_funnel(client):
+    os.chdir(get_bq_path())
+    os.system(f"amm provision-funnel.sc {client} true true true > provision_funnel_log_{client}.txt")
+
+def main(clean_install = False, provision_client_only = False):
     parser = argparse.ArgumentParser()
     prepare_args(parser)
     args = parser.parse_args()
     validate_args(args)     
 
-    client = BqClient(args.c)
+    if clean_install and not provision_client_only:
+        bq_client = BqDeploymentClient(args.c)
+        uninstall_funnel(bq_client)
 
-    validate_core_migration(client, args.c)
-    validate_ext_cleanup(client)
+    bq_client = BqClient(args.c)
+
+    provision_client(bq_client)
+    validate_provision_client(bq_client)
+
+    if not provision_client_only:
+        provision_funnel(args.c)
+        validate_provision_funnel(bq_client)
+        validate_ext_cleanup(bq_client)
     
 if __name__ == "__main__":
-    main()
+    main(clean_install = True, provision_client_only = True)

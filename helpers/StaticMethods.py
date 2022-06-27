@@ -60,7 +60,7 @@ def paths_to_sql_names(paths):
         parts = path.split('/')        
         yield f"{parts[-3]}.{parts[-1][:-4]}"
 
-def print_success(message, indents = 1):
+def print_success(message, indents = 0):
     """
         (Str) -> None
         Prints "Success: " in green, followed by the provided message.
@@ -68,7 +68,7 @@ def print_success(message, indents = 1):
     print_color(('\t'*indents)+"Success:", PrintColors.OKGREEN, end=' ')
     print(message)
 
-def print_fail(message, indents = 1):
+def print_fail(message, indents = 0):
     """
         (Str) -> None
         Prints "Fail: " in red, followed by the provided message.
@@ -76,7 +76,7 @@ def print_fail(message, indents = 1):
     print_color(('\t'*indents)+"Fail:", PrintColors.FAIL, end=' ')
     print(message)
 
-def print_warn(message, indents = 1):
+def print_warn(message, indents = 0):
     """
         (Str) -> None
         Prints "Warning: " in yellow, followed by the provided message.
@@ -84,7 +84,7 @@ def print_warn(message, indents = 1):
     print_color(('\t'*indents)+"Warning:", PrintColors.WARNING, end=' ')
     print(message)
 
-def print_info(message, indents = 1):
+def print_info(message, indents = 0):
     """
         (Str) -> None
         Prints "Info: " in cyan, followed by the provided message.
@@ -104,3 +104,6 @@ def object_name_to_type(name):
     else:
         return 'unknown'
     # TODO: make this less bad
+
+def is_quoted(text):
+    return text[0] == "'" and text[-1] == "'"
