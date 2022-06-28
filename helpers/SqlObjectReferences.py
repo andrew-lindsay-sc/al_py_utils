@@ -58,7 +58,7 @@ class SqlObjectReferences:
 
             yield reference
 
-    def _walk_tree_bottom_up(self, tree: Node):
+    def _flatten_tree(self, tree: Node):
         # for child in tree.children:
         #     self._walk_tree_bottom_up(child)
 
@@ -72,4 +72,4 @@ class SqlObjectReferences:
             depth -= 1
 
     def get_child_set(self):
-        return set(self._walk_tree_bottom_up(self._children))
+        return set(self._flatten_tree(self._children))
