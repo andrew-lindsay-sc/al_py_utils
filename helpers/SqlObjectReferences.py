@@ -1,4 +1,5 @@
-import os, re
+from email import generator
+import re
 from anytree import Node, RenderTree
 
 from helpers.StaticMethods import *
@@ -14,10 +15,10 @@ class SqlObjectReferences:
         self._parse_children(self._children)
 
     # TODO: implement this
-    def _parse_parents(self, object_name: str, definition: str):
+    def _parse_parents(self, object_name: str, definition: str) -> None:
         raise Exception("Not Implemented Yet")
 
-    def _parse_children(self, base_node: Node):
+    def _parse_children(self, base_node: Node) -> None:
         if self._children.name == '':
             self._children = Node(self._root_object.fully_qualified_name)
 
@@ -26,17 +27,17 @@ class SqlObjectReferences:
             child_node = Node(reference, parent = base_node)
             self._parse_children(child_node)
 
-    def print_children(self):
-        for pre, fill, node in RenderTree(self._children):
+    def print_children(self) -> None:
+        for pre, fill, node in RenderTree(self._children)
             print("%s%s" % (pre, node.name))
 
-    def _add_reference(self, reference, referencee):
+    def _add_reference(self, reference, referencee) -> None:
         if reference not in self.refs:
             self.refs[reference] = list()
 
         self.refs[reference].append(referencee)
 
-    def _get_referenced_objects(self, object_name: str):
+    def _get_referenced_objects(self, object_name: str) -> generator[str]:
         obj = SqlObject(f"{object_name}")
         try:
             words = obj.definition.split(' ')
@@ -58,11 +59,7 @@ class SqlObjectReferences:
 
             yield reference
 
-    def _flatten_tree(self, tree: Node):
-        # for child in tree.children:
-        #     self._walk_tree_bottom_up(child)
-
-        # yield tree.name
+    def _flatten_tree(self, tree: Node) -> None:
         depth = tree.height
         while depth >= 0:
             descendants = list(filter(lambda d: d.depth == depth, tree.descendants))
@@ -71,5 +68,5 @@ class SqlObjectReferences:
 
             depth -= 1
 
-    def get_child_set(self):
+    def get_children(self) -> set[str]:
         return set(self._flatten_tree(self._children))
