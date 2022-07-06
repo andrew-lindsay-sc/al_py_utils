@@ -8,19 +8,27 @@ class BqDeploymentClient(BqClient):
         self.before_state = self.get_views_and_tables()
 
     def _get_dependencies(self, file: str):
+        # TODO: implement this
         pass
 
-    def deploy_files(self, files: list[str], operation: str, handle_dependencies = False):
+    def deploy_files(self, files: list[str], operation: BqClient.Operation, handle_dependencies = False):
         """
             (list[str], str) -> None
             Orchestrator for deployment of provided list of objects
         """
+        if handle_dependencies:
+            handled_dependencies = list()
         for file in files:
             if handle_dependencies:
                 dependencies = self._get_dependencies(file)
                 for dependency in dependencies:
-                    print_info(self.manage_object(operation, file))
-                    
+                    # Quick measure to avoid updating the same file multiple times if it appears as a dependency
+                    #   to multiple items
+                    if dependency in handle_dependencies:
+                        continue
+                    print_info(self.manage_object(BqClient.Operation.MODIFIED, dependency))
+                    handled_dependencies.append(dependency)
+
             print_info(self.manage_object(operation, file))
 
     def verify_drops(self, deletions):

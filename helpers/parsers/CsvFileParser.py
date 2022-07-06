@@ -1,5 +1,6 @@
 from helpers.StaticMethods import print_warn, get_bq_path, object_name_to_type
 from helpers.parsers.abstracts.FileParser import FileParser
+from helpers.clients.BqClient import *
 import copy
 import os.path
 
@@ -17,7 +18,7 @@ class CsvFileParser(FileParser):
     def parse_clients(self):
         bq_path = get_bq_path()
         files_by_client = dict()
-        operations = {'modified': list(), 'deleted': list()}
+        operations = {BqClient.Operation.MODIFIED: list(), BqClient.Operation.DELETED: list()}
         with open(self.file, 'r') as infile:
             content = infile.read()
             lines = content.split('\n')

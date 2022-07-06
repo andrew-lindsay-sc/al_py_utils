@@ -4,7 +4,6 @@
 from google.cloud import bigquery_datatransfer
 from google.protobuf.field_mask_pb2 import FieldMask
 import argparse
-import sys
 
 def prepare_args(parser):
     parser.add_argument(
@@ -37,7 +36,7 @@ def update_transfers(scheduled_queries, client):
                 )
             )
 
-def main(argv):
+def main():
     parser = argparse.ArgumentParser()
     prepare_args(parser)
     args = parser.parse_args()
@@ -54,4 +53,4 @@ def main(argv):
     update_transfers(scheduled_queries, client)
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()

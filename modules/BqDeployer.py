@@ -65,9 +65,9 @@ class BqDeployer:
                 continue
 
             print(f"{client}:")
-            self.print_file_info(operation['modified'], 'modified')
-            self.print_file_info(operation['deleted'], 'deleted')
-            file_count += len(operation['modified']) + len(operation['deleted'])
+            self.print_file_info(operation[BqClient.Operation.MODIFIED], BqClient.Operation.MODIFIED)
+            self.print_file_info(operation[BqClient.Operation.DELETED], BqClient.Operation.DELETED)
+            file_count += len(operation[BqClient.Operation.MODIFIED]) + len(operation[BqClient.Operation.DELETED])
 
         print(f"Total files to be deployed: {file_count}")
 
@@ -82,10 +82,10 @@ class BqDeployer:
             print(f"Deploying {client}...")
             bq_instance = BqDeploymentClient(client)
 
-            bq_instance.deploy_files(operation['modified'], 'modified')
-            bq_instance.deploy_files(operation['deleted'], 'deleted')
+            bq_instance.deploy_files(operation[BqClient.Operation.MODIFIED], BqClient.Operation.MODIFIED)
+            bq_instance.deploy_files(operation[BqClient.Operation.DELETED], BqClient.Operation.DELETED)
 
-            bq_instance.validate_deployment(operation['deleted'], operation['modified'])
+            bq_instance.validate_deployment(operation[BqClient.Operation.DELETED], operation[BqClient.Operation.MODIFIED])
 
     def deploy(self, is_dry_run = True):
         if self._mode == self.Mode.EXAMPLE:

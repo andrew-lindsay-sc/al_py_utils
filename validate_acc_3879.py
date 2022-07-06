@@ -169,9 +169,9 @@ def objects_to_paths(objects, client_name):
     return file_paths
 
 def uninstall_funnel(bq_client: BqDeploymentClient) -> bool:
-    funnel_changes = {'deleted': objects_to_paths(all_funnel_objects, bq_client.client_name)}
-    bq_client.deploy_files(funnel_changes['deleted'], 'deleted')
-    bq_client.validate_deployment(list(), funnel_changes['deleted'])
+    funnel_changes = {BqClient.Operation.DELETED: objects_to_paths(all_funnel_objects, bq_client.client_name)}
+    bq_client.deploy_files(funnel_changes[BqClient.Operation.DELETED], BqClient.Operation.DELETED)
+    bq_client.validate_deployment(list(), funnel_changes[BqClient.Operation.DELETED])
 
     transfer_client = BqTransferClient(bq_client.client_name)
     funnel_transfer_names = [
@@ -194,9 +194,9 @@ def uninstall_funnel(bq_client: BqDeploymentClient) -> bool:
 #     os.system(f"./provision-client.sh --all {client} > provision_client_log_{client}.txt")
 
 def provision_client(bq_client: BqDeploymentClient):
-    to_deploy = {'modified', objects_to_paths(provision_client_objects, bq_client.client_name)}
-    bq_client.deploy_files(to_deploy['modified'], 'modified', True)
-    bq_client.validate_deployment(list(), to_deploy['modified'])
+    to_deploy = {BqClient.Operation.MODIFIED, objects_to_paths(provision_client_objects, bq_client.client_name)}
+    bq_client.deploy_files(to_deploy[BqClient.Operation.MODIFIED], BqClient.Operation.MODIFIED, True)
+    bq_client.validate_deployment(list(), to_deploy[BqClient.Operation.MODIFIED])
 
 def provision_funnel(client):
     os.chdir(get_bq_path())

@@ -2,8 +2,13 @@ from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 from helpers.PrintColors import *
 from helpers.StaticMethods import *
+from enum import Enum
 
 class BqClient:
+    class Operation(Enum):
+        MODIFIED = 1
+        DELETED = 2
+
     """Helper class to wrap bigQuery client initialization and operations"""
     def __init__(self, client_name, skip_instance = False):
         self.project_id = client_name if 'sandbox' in client_name else "soundcommerce-client-"+client_name
@@ -25,7 +30,7 @@ class BqClient:
         select distinct full_name from data
     """
 
-    def manage_object(self, operation, file):
+    def manage_object(self, operation: Operation, file):
         """
             (str, str) -> None
             Performs the specified BQ operation on the specified file.
@@ -36,11 +41,11 @@ class BqClient:
         to_modify = bigquery.Table(self.project_id+'.'+dataset+'.'+object_name)
         object_type = file_parts[-2]
 
-        if operation == 'deleted' and object_type == 'table':
+        if operation == self.Operation.DELETED and object_type == 'table':
             print_warn(f"Table drops must be performed manually ({object_name}).")
 
         if object_type in ['table', 'view', 'schema']:
-            if operation == 'modified':
+            if operation == self.Operation.MODIFIED:
                 if '_0.sql' in file:
                     # strip out the client name for _0s as we should be using the 
                     #   standardized version
@@ -65,7 +70,7 @@ class BqClient:
                     )                
                     return f"({object_type}) {dataset}.{object_name} has been created."
 
-            elif operation == 'deleted':
+            elif operation == self.Operation.DELETED:
                 try:
                     self.instance.delete_table(table = to_modify)
                 except NotFound:

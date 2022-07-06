@@ -1,5 +1,6 @@
 from helpers.StaticMethods import get_all_clients
 from helpers.parsers.abstracts.FileParser import FileParser
+from helpers.clients.BqClient import *
 
 class CommitFileParser(FileParser):
     def __init__(self, commit):
@@ -11,17 +12,17 @@ class CommitFileParser(FileParser):
             (Commit) -> dict<string, list<string>>
             Parses files modified by the provided merge_commit and returns all SQL files.
         """
-        changed_files = {'modified': list(), 'deleted': list()}
+        changed_files = {BqClient.Operation.MODIFIED: list(), BqClient.Operation.DELETED: list()}
 
         for file, detail in self.commit.stats.files.items():
             if file[-4:] != '.sql':
                 continue
 
             if detail["lines"] == detail["deletions"] and detail["insertions"] == 0:
-                changed_files['deleted'].append(file)
+                changed_files[BqClient.Operation.DELETED].append(file)
             # We don't care whether the file was added or updated, it makes no functional difference 
             else:
-                changed_files['modified'].append(file)
+                changed_files[BqClient.Operation.MODIFIED].append(file)
 
         return changed_files
 
@@ -46,7 +47,7 @@ class CommitFileParser(FileParser):
 
                 client = path_parts[0]
                 if client not in files_by_client:
-                    files_by_client[client] = {'modified': list(), 'deleted': list()}
+                    files_by_client[client] = {BqClient.Operation.MODIFIED: list(), BqClient.Operation.DELETED: list()}
 
                 files_by_client[client][operation].append(file)
 
@@ -57,7 +58,7 @@ class CommitFileParser(FileParser):
             dict(str,list<str>) -> dict(str, dict(str,list<str>))
             Identifies any modifications which affect all clients and returns this in the format expected by parse_clients.
         """
-        files_by_client = { client : {'modified': list(), 'deleted': list()} for client in get_all_clients() }
+        files_by_client = { client : {BqClient.Operation.MODIFIED: list(), BqClient.Operation.DELETED: list()} for client in get_all_clients() }
         
         global_count = 0
 
