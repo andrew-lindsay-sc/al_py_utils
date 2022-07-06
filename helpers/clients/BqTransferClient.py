@@ -5,7 +5,7 @@ from google.cloud.bigquery_datatransfer_v1.types.transfer import TransferConfig,
 from google.cloud import bigquery_datatransfer_v1
 from google.protobuf import field_mask_pb2
 
-from helpers.BqClient import *
+from helpers.clients.BqClient import *
 from helpers.StaticMethods import *
 
 class BqTransferClient(BqClient):

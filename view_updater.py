@@ -4,7 +4,7 @@
 from google.cloud import bigquery
 import argparse
 from helpers.StaticMethods import *
-from helpers.BqClient import *
+from helpers.clients.BqClient import *
 
 def prepare_args(parser):
     parser.add_argument(

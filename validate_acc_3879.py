@@ -7,9 +7,9 @@ from google.cloud import bigquery
 import subprocess
 from helpers.StaticMethods import *
 
-from helpers.BqTransferClient import BqTransferClient
-from helpers.BqClient import BqClient
-from helpers.BqDeploymentClient import BqDeploymentClient
+from helpers.clients.BqTransferClient import BqTransferClient
+from helpers.clients.BqClient import BqClient
+from helpers.clients.BqDeploymentClient import BqDeploymentClient
 # from google.cloud.bigquery_datatransfer_v1.types.TransferState
 from google.cloud.bigquery_datatransfer_v1.types import TransferState
 
