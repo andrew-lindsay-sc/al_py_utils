@@ -1,7 +1,7 @@
 from requests import head
 from helpers.StaticMethods import print_warn
 from helpers.StaticMethods import get_bq_path, object_name_to_type
-from helpers.abstracts.FileParser import FileParser
+from helpers.parsers.abstracts.FileParser import FileParser
 import copy
 import os.path
 

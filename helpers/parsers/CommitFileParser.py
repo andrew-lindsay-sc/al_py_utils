@@ -1,5 +1,5 @@
 from helpers.StaticMethods import get_all_clients
-from helpers.abstracts.FileParser import FileParser
+from helpers.parsers.abstracts.FileParser import FileParser
 
 class CommitFileParser(FileParser):
     def __init__(self, commit):

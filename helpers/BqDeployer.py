@@ -8,7 +8,7 @@ from helpers.clients.GitClient import *
 from helpers.PrintColors import *
 from helpers.clients.BqDeploymentClient import *
 from helpers.StaticMethods import *
-from helpers.abstracts.FileParser import FileParser
+from helpers.parsers.abstracts.FileParser import FileParser
 
 class BqDeployer:
     def __init__(self):
