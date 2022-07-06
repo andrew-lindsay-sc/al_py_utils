@@ -2,7 +2,7 @@
 
 import argparse
 from helpers.StaticMethods import print_info
-from helpers.BqDeployer import BqDeployer
+from modules.BqDeployer import BqDeployer
 
 def prepare_args(parser):
     parser.add_argument(
