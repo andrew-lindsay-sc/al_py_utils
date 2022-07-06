@@ -1,5 +1,7 @@
+import os
 from typing import get_origin
-from git import Repo
+from git import DiffIndex, Repo
+from helpers.StaticMethods import get_mono_path
 
 class GitClient:
     """Helper class made to simplify git interaction"""
@@ -50,3 +52,14 @@ class GitClient:
         self.origin.fetch()
         head.checkout()  # checkout local "master" to working tree
         self.origin.pull()
+
+    def get_git_status(self) -> DiffIndex:
+        return self.repo.head.commit.diff(None)
+
+    def revert_tracked_changes(self, to_revert: DiffIndex):
+        self.repo.index.checkout([x.b_path for x in to_revert], force=True)
+
+    def revert_untracked_changes(self, to_revert: list[str]):
+        mono_path = get_mono_path()        
+        for file in to_revert:
+            os.remove(f"{mono_path}/{file}")

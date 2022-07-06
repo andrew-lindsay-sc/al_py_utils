@@ -28,7 +28,7 @@ class SqlObjectReferences:
             self._parse_children(child_node)
 
     def print_children(self) -> None:
-        for pre, fill, node in RenderTree(self._children)
+        for pre, fill, node in RenderTree(self._children):
             print("%s%s" % (pre, node.name))
 
     def _add_reference(self, reference, referencee) -> None:

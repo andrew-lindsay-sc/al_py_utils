@@ -26,10 +26,6 @@ class BqTransferClient(BqClient):
             )
 
     def _validate_service_account_update(self, transfer_config: TransferConfig, service_account_name: str):
-        # Ensure we have all the data we need
-        transfer_config = self.instance.get_transfer_config(
-            bigquery_datatransfer_v1.GetTransferConfigRequest(name=transfer_config.name)
-        )
         email = transfer_config.owner_info.email
 
         if email == service_account_name:
@@ -42,10 +38,26 @@ class BqTransferClient(BqClient):
         return True, transfer_config
 
     # TODO: Support specifying different fields per SQ
-    def get_config_updates(self, updates: dict[str,str]):   
-        for config in self._transfer_configs:
+    def get_config_updates(self, updates: dict[str,str]): 
+        configs = self._transfer_configs
+
+        targeted_update = False
+
+        # Handle display_name filtering
+        if 'display_name' in updates:
+            targeted_update = True
+            configs = list(filter(lambda config: config.display_name == updates['display_name'], configs))
+            updates.pop('display_name')
+
+        for config in configs:        
+            # Ensure we have all the data we need
+            config = self.instance.get_transfer_config(
+                bigquery_datatransfer_v1.GetTransferConfigRequest(name=config.name)
+            )
+
+            # Handle Service account name
             config_updates = copy.deepcopy(updates)
-            if 'service_account_name' in config_updates:
+            if not targeted_update and 'service_account_name' in config_updates:
                 is_account_update_valid, config = self._validate_service_account_update(config, config_updates['service_account_name'])
                 if not is_account_update_valid:
                     del config_updates['service_account_name']
