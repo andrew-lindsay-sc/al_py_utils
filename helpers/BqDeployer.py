@@ -2,8 +2,8 @@
 
 import argparse
 
-from helpers.CommitFileParser import *
-from helpers.CsvFileParser import *
+from helpers.parsers.CommitFileParser import *
+from helpers.parsers.CsvFileParser import *
 from helpers.clients.GitClient import *
 from helpers.PrintColors import *
 from helpers.clients.BqDeploymentClient import *
