@@ -1,6 +1,4 @@
-from requests import head
-from helpers.StaticMethods import print_warn
-from helpers.StaticMethods import get_bq_path, object_name_to_type
+from helpers.StaticMethods import print_warn, get_bq_path, object_name_to_type
 from helpers.parsers.abstracts.FileParser import FileParser
 import copy
 import os.path
@@ -8,7 +6,8 @@ import os.path
 class CsvFileParser(FileParser):
     def __init__(self, file):
         self.file = file
-        return
+        if len(self.file) > 0 and not os.path.exists(self.file):
+            raise FileNotFoundError(self.file)
 
     def print_example_file(self):
         print("client_name, operation, object_name")

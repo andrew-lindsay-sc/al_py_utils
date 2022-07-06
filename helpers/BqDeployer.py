@@ -1,22 +1,40 @@
 # pip install GitPython
 
-import argparse
-
 from helpers.parsers.CommitFileParser import *
 from helpers.parsers.CsvFileParser import *
 from helpers.clients.GitClient import *
 from helpers.PrintColors import *
 from helpers.clients.BqDeploymentClient import *
 from helpers.StaticMethods import *
-from helpers.parsers.abstracts.FileParser import FileParser
+from enum import Enum
 
 class BqDeployer:
-    def __init__(self):
-        _git = GitClient(get_mono_path())
-        # Work from Master as we should only be deployed merged work
-        _git.switch_to(self._git.master)
+    class Mode(Enum):
+        EXAMPLE = 1
+        GIT = 2
+        FILE = 3
 
-    def print_file_info(files, operation):
+    def __init__(self, mode: Mode, fetch_files_from: str, client_list = ''):
+        self._mode = mode
+        self._git = GitClient(get_mono_path())
+        # Work from Master as we should only be deployed merged work
+        self._git.switch_to(self._git.master)
+
+        if mode == self.Mode.EXAMPLE:
+            CsvFileParser('').print_example_file()
+            return
+        elif mode == self.Mode.GIT:
+            merge_commit = self._git.get_commit_by_sha(fetch_files_from)
+            self._parser = CommitFileParser(merge_commit)
+        elif mode == self.Mode.FILE:
+            self._parser = CsvFileParser(fetch_files_from)    
+
+        if len(self._parser.files_by_client) == 0:
+            print("No SQL files found in provided source, exiting...")
+        else:
+            self._clients = arg_to_list(client_list)
+
+    def print_file_info(self, files, operation):
         """
             Print handler which displays a list of files and the operation done to them.
         """
@@ -37,28 +55,28 @@ class BqDeployer:
 
                 print_warn(f"({object_type}) {file} will be {operation}")
 
-    def report_files(report_files, clients):
+    def report_files(self):
         """
             Summarizes the changes made to BQ objects by the commit.
         """
         file_count = 0
-        for client, operation in report_files.items():
-            if len(clients) > 0 and client not in clients:
+        for client, operation in self._parser.changed_files.items():
+            if len(self._clients) > 0 and client not in self._clients:
                 continue
 
             print(f"{client}:")
-            print_file_info(operation['modified'], 'modified')
-            print_file_info(operation['deleted'], 'deleted')
+            self.print_file_info(operation['modified'], 'modified')
+            self.print_file_info(operation['deleted'], 'deleted')
             file_count += len(operation['modified']) + len(operation['deleted'])
 
         print(f"Total files to be deployed: {file_count}")
 
-    def deploy_commit(files_by_client, clients):
+    def deploy_commit(self):
         """
             Orchestrates deployment of all identified BQ modifications in the commit.
         """
-        for client, operation in files_by_client.items():
-            if len(clients) > 0 and client not in clients:
+        for client, operation in self._parser.files_by_client.items():
+            if len(self._clients) > 0 and client not in self._clients:
                 continue
 
             print(f"Deploying {client}...")
@@ -69,30 +87,16 @@ class BqDeployer:
 
             bq_instance.validate_deployment(operation['deleted'], operation['modified'])
 
-def main():
-    if args.exampleFile:
-        CsvFileParser('').print_example_file()
-        return
-    elif args.sha:
-        merge_commit = git.get_commit_by_sha(args.sha)
-        parser = CommitFileParser(merge_commit)
-    elif args.file:
-        parser = CsvFileParser(args.file)    
-
-    if len(parser.files_by_client) == 0:
-        print("No SQL files found in provided source, exiting...")
-    else:
-        clients = arg_to_list(args.c)
-
-        report_files(parser.files_by_client, clients)
-        if(args.go):
-            deploy_commit(parser.files_by_client, clients)
+    def deploy(self, is_dry_run = True):
+        if self._mode == self.Mode.EXAMPLE:
+            return
+            
+        self.report_files()
+        if not is_dry_run:
+            self.deploy_commit()
         else:
-            print_info(f"-go was not specified, no changes will be made, exiting...")
+            print_info(f"BqDeployer.deploy received is_dry_run = False, no changes will be made, exiting...")
             return
 
-    # Restore original state
-    git.switch_to(git.original_head)
-
-if __name__ == "__main__":
-    main()
+        # Restore original state
+        self._git.switch_to(self._git.original_head)

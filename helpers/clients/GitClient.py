@@ -1,5 +1,4 @@
 import os
-from typing import get_origin
 from git import DiffIndex, Repo
 from helpers.StaticMethods import get_mono_path
 
