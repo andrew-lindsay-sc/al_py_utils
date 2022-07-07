@@ -1,5 +1,6 @@
 # pip install GitPython
 
+from modules.abstracts import DevToolsModule
 from helpers.parsers.CommitFileParser import *
 from helpers.parsers.CsvFileParser import *
 from helpers.clients.GitClient import *
@@ -8,7 +9,7 @@ from helpers.clients.BqDeploymentClient import *
 from helpers.StaticMethods import *
 from enum import Enum
 
-class BqDeployer:
+class BqDeployer(DevToolsModule):
     class Mode(Enum):
         EXAMPLE = 1
         GIT = 2
@@ -34,7 +35,7 @@ class BqDeployer:
         else:
             self._clients = arg_to_list(client_list)
 
-    def print_file_info(self, files, operation):
+    def _print_file_info(self, files, operation):
         """
             Print handler which displays a list of files and the operation done to them.
         """
@@ -55,7 +56,7 @@ class BqDeployer:
 
                 print_warn(f"({object_type}) {file} will be {operation}")
 
-    def report_files(self):
+    def _report_files(self):
         """
             Summarizes the changes made to BQ objects by the commit.
         """
@@ -71,7 +72,7 @@ class BqDeployer:
 
         print(f"Total files to be deployed: {file_count}")
 
-    def deploy_commit(self):
+    def _deploy_commit(self):
         """
             Orchestrates deployment of all identified BQ modifications in the commit.
         """
@@ -87,7 +88,7 @@ class BqDeployer:
 
             bq_instance.validate_deployment(operation[BqClient.Operation.DELETED], operation[BqClient.Operation.MODIFIED])
 
-    def deploy(self, is_dry_run = True):
+    def execute(self, is_dry_run = True) -> bool:
         if self._mode == self.Mode.EXAMPLE:
             return
             
@@ -96,7 +97,9 @@ class BqDeployer:
             self.deploy_commit()
         else:
             print_info(f"BqDeployer.deploy received is_dry_run = False, no changes will be made, exiting...")
-            return
+            return True
 
         # Restore original state
         self._git.switch_to(self._git.original_head)
+
+        return True
