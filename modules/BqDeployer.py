@@ -46,7 +46,7 @@ class BqDeployer(DevToolsModule):
                 object_name = file_parts[-1].replace('.sql', '')
                 object_type = file_parts[-2]
                 dataset = file_parts[-3]
-                print_warn(f"({object_type}) {dataset}.{object_name} will be {operation}")
+                print_warn(f"({object_type}) {dataset}.{object_name} will be {operation.name.lower()}", indents=1)
 
             elif '.' in file:
                 if file.split('.')[1].split('_')[0] in ('vw', 'vvw'):
@@ -54,20 +54,20 @@ class BqDeployer(DevToolsModule):
                 else:
                     object_type = 'unknown'
 
-                print_warn(f"({object_type}) {file} will be {operation}")
+                print_warn(f"({object_type}) {file} will be {operation.name.lower()}")
 
     def _report_files(self):
         """
             Summarizes the changes made to BQ objects by the commit.
         """
         file_count = 0
-        for client, operation in self._parser.changed_files.items():
+        for client, operation in self._parser.files_by_client.items():
             if len(self._clients) > 0 and client not in self._clients:
                 continue
 
             print(f"{client}:")
-            self.print_file_info(operation[BqClient.Operation.MODIFIED], BqClient.Operation.MODIFIED)
-            self.print_file_info(operation[BqClient.Operation.DELETED], BqClient.Operation.DELETED)
+            self._print_file_info(operation[BqClient.Operation.MODIFIED], BqClient.Operation.MODIFIED)
+            self._print_file_info(operation[BqClient.Operation.DELETED], BqClient.Operation.DELETED)
             file_count += len(operation[BqClient.Operation.MODIFIED]) + len(operation[BqClient.Operation.DELETED])
 
         print(f"Total files to be deployed: {file_count}")
@@ -96,7 +96,7 @@ class BqDeployer(DevToolsModule):
         if not is_dry_run:
             self._deploy_commit()
         else:
-            print_info(f"BqDeployer.deploy received is_dry_run = False, no changes will be made, exiting...")
+            print_info(f"BqDeployer.deploy received is_dry_run, no changes will be made, exiting...")
             return True
 
         # Restore original state
