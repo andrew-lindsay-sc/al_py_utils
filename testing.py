@@ -1,5 +1,5 @@
-from helpers.SqlObjectReferences import SqlObjectReferences
-from helpers.SqlObject import SqlObject
+from domain.SqlObjectReferences import SqlObjectReferences
+from domain.SqlObject import SqlObject
 
 my_obj = SqlObject('soundcommerce-client-lantern.core.vw_marketing_campaign_mapping')
 refs = SqlObjectReferences(my_obj)

@@ -8,7 +8,7 @@ import csv
 from dataclasses import dataclass
 from helpers.StaticMethods import get_all_clients
 from helpers.StaticMethods import print_info
-from helpers.clients.BqTransferClient import BqTransferClient
+from clients.BqTransferClient import BqTransferClient
 from google.cloud.bigquery_datatransfer_v1.types.transfer import TransferConfig, UserInfo
 
 @dataclass

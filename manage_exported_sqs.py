@@ -1,4 +1,4 @@
-from helpers.clients.GitClient import *
+from clients.GitClient import *
 from helpers.StaticMethods import *
 
 def match_on_display_name(not_matched, diffs: DiffIndex, untracked_files: list[str]):

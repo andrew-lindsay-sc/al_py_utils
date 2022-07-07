@@ -1,6 +1,6 @@
 from helpers.StaticMethods import get_all_clients
-from helpers.parsers.abstracts.FileParser import FileParser
-from helpers.clients.BqClient import *
+from parsers.abstracts.FileParser import FileParser
+from clients.BqClient import *
 
 class CommitFileParser(FileParser):
     def __init__(self, commit):

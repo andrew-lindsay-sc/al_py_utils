@@ -1,4 +1,4 @@
-from helpers.clients.BqClient import *
+from clients.BqClient import *
 from helpers.StaticMethods import *
 
 class BqDeploymentClient(BqClient):

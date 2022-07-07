@@ -1,11 +1,11 @@
 # pip install GitPython
 
 from modules.abstracts.DevToolsModule import DevToolsModule
-from helpers.parsers.CommitFileParser import *
-from helpers.parsers.CsvFileParser import *
-from helpers.clients.GitClient import *
+from parsers.CommitFileParser import *
+from parsers.CsvFileParser import *
+from clients.GitClient import *
 from helpers.PrintColors import *
-from helpers.clients.BqDeploymentClient import *
+from clients.BqDeploymentClient import *
 from helpers.StaticMethods import *
 from enum import Enum
 

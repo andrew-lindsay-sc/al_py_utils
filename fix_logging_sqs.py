@@ -1,4 +1,4 @@
-from helpers.clients.BqTransferClient import *
+from clients.BqTransferClient import *
 
 clients = ['eddieb', 'brcc', 'ghcc', 'tempo', 'ftd', 'cbi', 'bala', 'pacsun', 'ovme']
 for client in clients:

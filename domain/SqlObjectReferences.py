@@ -4,7 +4,7 @@ from anytree import Node, RenderTree
 
 from helpers.StaticMethods import *
 from helpers.PrintColors import *
-from helpers.SqlObject import *
+from domain.SqlObject import *
 
 class SqlObjectReferences:
     def __init__(self, root_object: SqlObject):

@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 import time
 from dataclasses import dataclass
-from helpers.clients.BqClient import BqClient
+from clients.BqClient import BqClient
 from helpers.StaticMethods import *
 
 @dataclass

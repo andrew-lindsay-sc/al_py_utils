@@ -2,7 +2,7 @@ import json
 import subprocess
 import sys
 import argparse
-from helpers.clients.BqTransferClient import *
+from clients.BqTransferClient import *
 
 def main(argv):
     parser=argparse.ArgumentParser()

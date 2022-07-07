@@ -1,6 +1,6 @@
 from helpers.StaticMethods import print_warn, get_bq_path, object_name_to_type
-from helpers.parsers.abstracts.FileParser import FileParser
-from helpers.clients.BqClient import *
+from parsers.abstracts.FileParser import FileParser
+from clients.BqClient import *
 import copy
 import os.path
 
