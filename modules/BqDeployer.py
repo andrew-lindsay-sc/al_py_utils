@@ -1,6 +1,6 @@
 # pip install GitPython
 
-from modules.abstracts import DevToolsModule
+from modules.abstracts.DevToolsModule import DevToolsModule
 from helpers.parsers.CommitFileParser import *
 from helpers.parsers.CsvFileParser import *
 from helpers.clients.GitClient import *
@@ -92,9 +92,9 @@ class BqDeployer(DevToolsModule):
         if self._mode == self.Mode.EXAMPLE:
             return
             
-        self.report_files()
+        self._report_files()
         if not is_dry_run:
-            self.deploy_commit()
+            self._deploy_commit()
         else:
             print_info(f"BqDeployer.deploy received is_dry_run = False, no changes will be made, exiting...")
             return True

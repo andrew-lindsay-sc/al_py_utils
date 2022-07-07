@@ -47,7 +47,7 @@ def main():
         mode = BqDeployer.Mode.EXAMPLE
 
     deployer = BqDeployer(mode, fetch_files_from, args.c)
-    deployer.deploy(is_dry_run = not args.go)
+    deployer.execute(is_dry_run = not args.go)
 
 if __name__ == "__main__":
     main()
