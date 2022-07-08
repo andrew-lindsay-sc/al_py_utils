@@ -14,7 +14,14 @@ def prepare_args(parser):
     parser.add_argument(
         '-go', action='store_true', help='(Optional) Deploy the specified commit, otherwise changes will be reported but not deployed')
     parser.add_argument(
-        '-c', help='(Optional) Restrict clients to be modified to the specified list (e.g. "truthbar, rainbow2"')
+        '-c', '--clients', help='(Optional) Restrict clients to be modified to the specified list (e.g. "truthbar, rainbow2"')
+    parser.add_argument(
+        '-d', '--dev', action='store_true', help='(Optional) If specified, changes will be deployed to dev projects only. If changes are only to non-client objects, -c/--clients is required.')
+    # TODO: Development Mode Considerations
+    #   - Do not globally apply core/ext updates
+    #   - Allow manual specification of project
+    #   - Logic to switch to dev projects
+    #   - Resolution of relevant clients, error if impossible
 
 def validate_args(args):
     if (not (args.sha or args.file)):
@@ -43,6 +50,8 @@ def main():
     elif args.sha:
         mode = BqDeployer.Mode.GIT
         fetch_files_from = args.sha
+    elif args.d or args.dev:
+        mode = BqDeployer.Mode.DEVELOPMENT
     else:
         mode = BqDeployer.Mode.EXAMPLE
 

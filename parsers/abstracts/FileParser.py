@@ -7,17 +7,11 @@ class FileParser(metaclass=abc.ABCMeta):
 
     @property
     def files_by_client(self):
-        self._files_by_client = self.parse_clients()
+        if self._files_by_client is None:
+            self._files_by_client = self.parse_clients()
+            
         return self._files_by_client
 
     @abc.abstractmethod
     def parse_clients(self):
         pass
-
-    # @abc.abstractmethod
-    # def print_file_info(self):
-    #     pass
-
-    # @abc.abstractmethod
-    # def report_files(self):
-    #     pass

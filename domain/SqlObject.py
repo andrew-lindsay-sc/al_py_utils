@@ -4,26 +4,8 @@ from helpers.StaticMethods import get_bq_path
 class SqlObject:
     def __init__(
         self,
-        object_name: str, 
-        object_type: str,
-        dataset: str, 
-        client_name: str, 
-        file_path: str, 
-        bq_project = '', 
-        definition = ''
-    ):
-        self.object_name = object_name
-        self.object_type = object_type
-        self.dataset = dataset
-        self.client_name = client_name
-        self.bq_project = bq_project if len(bq_project) > 0 else 'soundcommerce-client-'+client_name
-        self.file_path = file_path
-        self._definition = definition
-        self.fully_qualified_name = f"{self.bq_project}.{self.dataset}.{self.object_name}"
-
-    def __init__(
-        self,
-        fully_qualified_name: str
+        fully_qualified_name: str,
+        definition: str = None
     ):
         self.fully_qualified_name = fully_qualified_name.replace('`','')
         name_parts = self.fully_qualified_name.split('.')
@@ -43,7 +25,7 @@ class SqlObject:
             f"{client_root}/{self.dataset}/{self.object_type}/{self.object_name}"+ \
             f"{'.json' if self.object_type =='schema' else '.sql'}"
 
-        self._definition = ''
+        self._definition = '' if definition is None else definition
 
     def __eq__(self, obj):
         if not(isinstance(obj, SqlObject)):
@@ -90,21 +72,6 @@ class SqlObject:
 
     def __hash__(self):
         return hash(self.fully_qualified_name)
-
-    def paths_to_sql_objects(paths: list[Path]):
-        sql_objects = list()
-        for path in paths:
-            sql_objects.append(
-                SqlObject(
-                    object_name = path.parts[-1].split('.')[0], 
-                    object_type = path.parts[-2],
-                    dataset = path.parts[-3],
-                    client_name = path.parts[-4],
-                    file_path = str(path)
-                )
-            )
-
-        return sql_objects
 
     def get_object_type(self):
         # parts = self.object_name.split('.')

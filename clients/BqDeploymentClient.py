@@ -1,5 +1,7 @@
+from domain.SqlObjectReferences import SqlObjectReferences
 from clients.BqClient import *
 from helpers.StaticMethods import *
+from anytree import Node, RenderTree
 
 class BqDeploymentClient(BqClient):
     """Helper class (child of BqClient) designed to help with deployment to BQ."""
@@ -7,9 +9,8 @@ class BqDeploymentClient(BqClient):
         BqClient.__init__(self, client_name)
         self.before_state = self.get_views_and_tables()
 
-    def _get_dependencies(self, file: str):
-        # TODO: implement this
-        pass
+    def _get_dependencies(self, sql_object: SqlObject) -> set[str]:
+        return SqlObjectReferences(sql_object).get_children
 
     def deploy_files(self, files: list[str], operation: BqClient.Operation, handle_dependencies = False):
         """
@@ -17,19 +18,24 @@ class BqDeploymentClient(BqClient):
             Orchestrator for deployment of provided list of objects
         """
         if handle_dependencies:
-            handled_dependencies = list()
+            self._processed_dependencies = list()
         for file in files:
-            if handle_dependencies:
-                dependencies = self._get_dependencies(file)
+            if handle_dependencies:                
+                sql_object = SqlObject(self.path_to_fully_qualified(file))
+
+                dependencies = self._get_dependencies(sql_object)
                 for dependency in dependencies:
                     # Quick measure to avoid updating the same file multiple times if it appears as a dependency
                     #   to multiple items
-                    if dependency in handle_dependencies:
+                    if dependency in self._processed_dependencies:
                         continue
-                    print_info(self.manage_object(BqClient.Operation.MODIFIED, dependency))
-                    handled_dependencies.append(dependency)
+                    print_info(f"Dependency check: {self.manage_object(BqClient.Operation.MODIFIED, dependency)}")
+                    self._processed_dependencies.append(dependency)
 
-            print_info(self.manage_object(operation, file))
+            if file not in self._processed_dependencies:
+                print_info(self.manage_object(operation, file))
+            else:
+                print_info(f"Skipping {file}, already deployed as a dependency")
 
     def verify_drops(self, deletions):
         """

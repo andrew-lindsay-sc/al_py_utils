@@ -1,5 +1,6 @@
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
+from domain.SqlObject import SqlObject
 from helpers.PrintColors import *
 from helpers.StaticMethods import *
 from enum import Enum
@@ -30,51 +31,182 @@ class BqClient:
         select distinct full_name from data
     """
 
+    def _fetch_object_definitions(self) -> dict[str, list]:
+        all_objects_query = """
+            SELECT 'view' as object_type, concat(table_schema, '.', table_name) as full_name, view_definition as definition
+            FROM region-us.INFORMATION_SCHEMA.VIEWS
+
+            union all
+
+            SELECT routine_type as object_type, concat(routine_schema, '.', routine_name) as full_name, routine_definition as definition
+            FROM region-us.INFORMATION_SCHEMA.ROUTINES
+            where routine_type != 'PROCEDURE'
+        """
+        results = self.instance.query(all_objects_query).result()
+        object_definitions = dict[str, list()]
+        for result in results:
+            if result.object_type not in object_definitions:
+                object_definitions[result.object_type] = list()
+            
+            object_definitions[result.object_type].append(
+                SqlObject(
+                    fully_qualified_name = f"`{self.project_id}.{result.full_name}`",
+                    definition = result.definition
+                )
+            )
+
+        return object_definitions
+
+    @property
+    def object_definitions(self) -> dict[str, str]:
+        if self._object_definitions is None:
+            self._object_definitions = self._fetch_object_definitions()
+
+        return self._object_definitions
+
+    def _get_object_meta(self, file: str):
+        file_parts = file.split('/')
+        object_name = file_parts[-1].split('.')[0]
+        dataset = file_parts[-3].strip()
+        object_type = file_parts[-2]
+
+        return object_type, dataset, object_name
+
+    def _manage_view(self, operation, file):
+        to_modify = bigquery.Table(self.path_to_fully_qualified(file))
+        object_type, dataset, object_name = self._get_object_meta(file)
+
+        if operation == self.Operation.MODIFIED:
+            if '_0.sql' in file:
+                # strip out the client name for _0s as we should be using the 
+                #   standardized version
+                file = file.replace(f"{self.client_name}/", "")
+            with open(file, 'r') as f:
+                definition = f.read()
+                definition.replace("${project}", self.project_id)\
+                    .replace("${dataset}", dataset)
+
+            # Try to update the table/view
+            try:
+                self.instance.get_table(to_modify)
+                if to_modify.view_query == definition:
+                    return f"Skipping {dataset}.{object_name}, definition is already up to date."
+
+                to_modify.view_query = definition
+                self.instance.update_table(
+                    table=to_modify, fields=["view_query"]
+                )
+            # If it doesn't exist, create it
+            except NotFound:
+                self.instance.create_table(
+                    table=to_modify
+                )                
+                return f"({object_type}) {dataset}.{object_name} has been created."
+
+        elif operation == self.Operation.DELETED:
+            try:
+                self.instance.delete_table(table = to_modify)
+            except NotFound:
+                return f"{object_name} does not exist and will be skipped."
+
+    def _manage_table(self, operation, file):
+        to_modify = bigquery.Table(self.path_to_fully_qualified(file))
+        object_type, dataset, object_name = self._get_object_meta(file)
+
+        if operation == self.Operation.MODIFIED:
+            with open(file, 'r') as f:
+                definition = json.load(f)
+            
+            # Try to update the table/view
+            try:
+                self.instance.get_table(to_modify)
+                existing_columns = [x.name for x in to_modify.schema]
+                columns_in_file = [x['name'] for x in definition]
+
+                missing_columns = [x for x in existing_columns if x not in columns_in_file]
+                if len(missing_columns) > 0:
+                    missing_string = ', '.join()
+                    print_warn(f"The following columns are missing from the provided definition: {missing_string}")
+                    print_warn(f"They will not be dropped.")
+
+                columns_to_add = [x for x in columns_in_file if x not in existing_columns]
+                if len(columns_to_add) == 0:
+                    return f"Table schema already matches for {to_modify.full_table_id}, skipping."
+                else:
+                    new_schema = to_modify.schema[:]  # Creates a copy of the schema.
+                    for col in definition:
+                        if col['name'] in columns_to_add:
+                            new_schema.append(bigquery.SchemaField(col['name'], col['type'], col['mode']))
+
+                    to_modify.schema = new_schema
+                    self.instance.update_table(table=to_modify, fields=["schema"])
+                    return f"Table schema has been updated for {to_modify.full_table_id}."
+
+            # If it doesn't exist, create it
+            except NotFound:
+                to_modify.schema = [bigquery.SchemaField(col['name'], col['type'], col['mode']) for x in definition]
+                self.instance.create_table(
+                    table=to_modify
+                )                
+                return f"({object_type}) {dataset}.{object_name} has been created."
+
+        elif operation == self.Operation.DELETED:
+            return f"This utility will not drop tables; no operation has been performed on {dataset}.{object_name}."
+
+    def _manage_function(self, operation, file):
+        to_modify = bigquery.Routine(self.path_to_fully_qualified(file))
+        object_type, dataset, object_name = self._get_object_meta(file)
+
+        if operation == self.Operation.MODIFIED:
+            with open(file, 'r') as f:
+                definition = f.read()
+                definition.replace("${project}", self.project_id)\
+                    .replace("${dataset}", dataset)
+
+            # Try to update the table/view
+            try:
+                self.instance.get_routine(to_modify)
+                if to_modify.body == definition:
+                    return f"Skipping {dataset}.{object_name}, definition is already up to date."
+
+                to_modify.view_query = definition
+                self.instance.update_routine(
+                    routine=to_modify, fields=["body"]
+                )
+            # If it doesn't exist, create it
+            except NotFound:
+                self.instance.create_routine(
+                    routine=to_modify
+                )                
+                return f"({object_type}) {dataset}.{object_name} has been created."
+
+        elif operation == self.Operation.DELETED:
+            try:
+                self.instance.delete_routine(routine = to_modify)
+            except NotFound:
+                return f"{object_name} does not exist and will be skipped."
+
+    def _manage_proc(self, operation, file):
+        # Currently no divergence in how we handle functions and procs, this may change in the future though
+        self._manage_function(operation, file)
+
     def manage_object(self, operation: Operation, file):
         """
             (str, str) -> None
             Performs the specified BQ operation on the specified file.
         """
-        file_parts = file.split('/')
-        object_name = file_parts[-1][:-4]
-        dataset = file_parts[-3].strip()
-        to_modify = bigquery.Table(self.project_id+'.'+dataset+'.'+object_name)
-        object_type = file_parts[-2]
+        object_type, dataset, object_name = self._get_object_meta(file)
+        to_modify = bigquery.Table(self.path_to_fully_qualified(file))
 
-        if operation == self.Operation.DELETED and object_type == 'table':
-            print_warn(f"Table drops must be performed manually ({object_name}).")
-
-        if object_type in ['table', 'view', 'schema']:
-            if operation == self.Operation.MODIFIED:
-                if '_0.sql' in file:
-                    # strip out the client name for _0s as we should be using the 
-                    #   standardized version
-                    file = file.replace(f"{self.client_name}/", "")
-                with open(file, 'r') as f:
-                    definition = f.read()
-
-                to_modify.view_query = \
-                    definition.replace("${project}", self.project_id)\
-                        .replace("${dataset}", dataset)
-
-                # Try to update the table/view
-                try:
-                    self.instance.get_table(to_modify)  # Make an API request.
-                    self.instance.update_table(
-                        table=to_modify, fields=["view_query"]
-                    )
-                # If it doesn't exist, create it
-                except NotFound:
-                    self.instance.create_table(
-                        table=to_modify
-                    )                
-                    return f"({object_type}) {dataset}.{object_name} has been created."
-
-            elif operation == self.Operation.DELETED:
-                try:
-                    self.instance.delete_table(table = to_modify)
-                except NotFound:
-                    return f"{object_name} does not exist and will be skipped."
+        if object_type == 'table':
+            self._manage_table(operation, file)
+        elif object_type == 'view':
+            self._manage_view(operation, file)
+        # TODO: Implement Procs and Function
+        elif object_type == 'function':
+            self._manage_function(operation, file)
+        elif object_type == 'procedure':
+            self._manage_proc(operation, file)
         else:
             raise NotImplementedError("Only tables and views are supported at this time")
 
@@ -133,3 +265,17 @@ class BqClient:
             views_and_tables.append(result.full_name)
 
         return views_and_tables
+
+    def path_to_fully_qualified(self, path: str) -> str:
+        return self.path_to_fully_qualified(Path(path))
+
+    def path_to_fully_qualified(self, path: Path) -> str:
+        """
+            (os.Path) -> str
+            Turn a system path into a fully qualified SQL object name.
+            This needs to exist here so that we have awareness of the associated project-id.
+        """
+        object_name = path[-1].replace('.sql','')
+        dataset = path[-3]
+        fully_qualified_name = f"`{self.project_id}.{dataset}.{object_name}`"
+        return fully_qualified_name

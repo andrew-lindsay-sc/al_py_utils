@@ -37,7 +37,7 @@ class SqlObjectReferences:
 
         self.refs[reference].append(referencee)
 
-    def _get_referenced_objects(self, object_name: str) -> generator[str]:
+    def _get_referenced_objects(self, object_name: str) -> generator:
         obj = SqlObject(f"{object_name}")
         try:
             words = obj.definition.split(' ')
@@ -59,7 +59,7 @@ class SqlObjectReferences:
 
             yield reference
 
-    def _flatten_tree(self, tree: Node) -> None:
+    def _flatten_tree(self, tree: Node) -> list:
         depth = tree.height
         while depth >= 0:
             descendants = list(filter(lambda d: d.depth == depth, tree.descendants))
@@ -69,4 +69,7 @@ class SqlObjectReferences:
             depth -= 1
 
     def get_children(self) -> set[str]:
+        '''
+            Parses Children to return a set of dependencies, ordered by depth in the dependency order
+        '''
         return set(self._flatten_tree(self._children))

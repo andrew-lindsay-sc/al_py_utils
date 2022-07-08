@@ -107,3 +107,10 @@ def object_name_to_type(name):
 
 def is_quoted(text):
     return text[0] == "'" and text[-1] == "'"
+
+def extract_client_from_path(path: Path) -> str:
+    try:
+        client = path.parts[path.parts.index('bq')+1]
+        client if client != 'bq' else 'global'
+    except:
+        return 'invalid path'

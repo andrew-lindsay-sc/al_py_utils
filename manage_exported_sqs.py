@@ -50,7 +50,7 @@ with open(manifest_path, 'r') as manifest:
 
 # print(files)
 git_client = GitClient(get_mono_path())#+'/infrastructure/gcloud/client/bq')
-diffs = git_client.get_git_status()
+diffs = git_client.get_branch_changes()
 untracked_files = list() if len(git_client.repo.untracked_files) == 0 else git_client.repo.untracked_files
 diffs_to_keep, untracked_files_to_keep = match_on_display_name(files, diffs, untracked_files)
 diffs_to_revert = DiffIndex(filter(lambda d: d.b_path not in [k.b_path for k in diffs_to_keep], diffs))

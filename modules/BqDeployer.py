@@ -3,6 +3,7 @@
 from modules.abstracts.DevToolsModule import DevToolsModule
 from parsers.CommitFileParser import *
 from parsers.CsvFileParser import *
+from parsers.DevModeParser import *
 from clients.GitClient import *
 from helpers.PrintColors import *
 from clients.BqDeploymentClient import *
@@ -14,12 +15,15 @@ class BqDeployer(DevToolsModule):
         EXAMPLE = 1
         GIT = 2
         FILE = 3
+        DEVELOPMENT = 4
 
     def __init__(self, mode: Mode, fetch_files_from: str, client_list = ''):
         self._mode = mode
         self._git = GitClient(get_mono_path())
-        # Work from Master as we should only be deployed merged work
-        self._git.switch_to(self._git.master)
+        
+        # Use master in all but development mode
+        if self._mode != self.Mode.DEVELOPMENT:
+            self._git.switch_to(self._git.master)
 
         if mode == self.Mode.EXAMPLE:
             CsvFileParser('').print_example_file()
@@ -28,7 +32,9 @@ class BqDeployer(DevToolsModule):
             merge_commit = self._git.get_commit_by_sha(fetch_files_from)
             self._parser = CommitFileParser(merge_commit)
         elif mode == self.Mode.FILE:
-            self._parser = CsvFileParser(fetch_files_from)    
+            self._parser = CsvFileParser(fetch_files_from)   
+        elif mode == self.Mode.DEVELOPMENT:
+            self._parser = DevModeParser(self._git.get_active_branch_changes())
 
         if len(self._parser.files_by_client) == 0:
             print("No SQL files found in provided source, exiting...")
@@ -100,6 +106,7 @@ class BqDeployer(DevToolsModule):
             return True
 
         # Restore original state
-        self._git.switch_to(self._git.original_head)
+        if self._mode != self.Mode.DEVELOPMENT:
+            self._git.switch_to(self._git.original_head)
 
         return True

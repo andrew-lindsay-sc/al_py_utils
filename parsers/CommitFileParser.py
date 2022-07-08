@@ -1,20 +1,21 @@
+from git import Commit
 from helpers.StaticMethods import get_all_clients
 from parsers.abstracts.FileParser import FileParser
 from clients.BqClient import *
 
 class CommitFileParser(FileParser):
-    def __init__(self, commit):
-        self.commit = commit
-        self.changed_files = self.parse_changed_files()
+    def __init__(self, commit: Commit):
+        self._commit = commit
+        self.changed_files = self._parse_changed_files()
 
-    def parse_changed_files(self):
+    def _parse_changed_files(self):
         """
             (Commit) -> dict<string, list<string>>
             Parses files modified by the provided merge_commit and returns all SQL files.
         """
         changed_files = {BqClient.Operation.MODIFIED: list(), BqClient.Operation.DELETED: list()}
 
-        for file, detail in self.commit.stats.files.items():
+        for file, detail in self._commit.stats.files.items():
             if file[-4:] != '.sql':
                 continue
 

@@ -1,5 +1,5 @@
 import os
-from git import DiffIndex, Repo
+from git import DiffIndex, Repo, Commit
 from helpers.StaticMethods import get_mono_path
 
 class GitClient:
@@ -10,12 +10,13 @@ class GitClient:
             Initialize the GitClient using the specified base path.
         """
         self.base_path = base_path
-        self.repo = self.get_repo()
-        self.original_head = self.repo.heads[0]
+        self.repo = self._get_repo()
+        self.original_head = self.repo.active_branch
+        self.original_branch = self.original_head.path.replace('refs/heads/','')
         self.master = self.repo.heads.master
-        self.origin = self.get_origin()
+        self.origin = self._get_origin()
 
-    def get_repo(self):
+    def _get_repo(self):
         """
             (None) -> Repo
             Initialize the repo for the instance's base path.
@@ -36,7 +37,7 @@ class GitClient:
 
         raise Exception("Did not find the specified commit")    
     
-    def get_origin(self):
+    def _get_origin(self):
         """
             (None) -> Remote
             Fetch the configured origin remote for this repo.
@@ -52,8 +53,27 @@ class GitClient:
         head.checkout()  # checkout local "master" to working tree
         self.origin.pull()
 
-    def get_git_status(self) -> DiffIndex:
-        return self.repo.head.commit.diff(None)
+    # I'm sure i'm doing this the hard way but I can't find an easier one
+    def _get_branch_commits(self, ref_name: str) -> list[Commit]:
+        ref_name = ref_name.replace('refs/heads/','')
+
+        commits = list()
+        commit = self.original_head.commit
+
+        while commit:
+            commits.append(commit)
+            candidates = [x for x in commit.parents if self.original_branch in x.name_rev]
+            if len(candidates) > 0:
+                commit = candidates[0]
+            else:
+                commit = None
+
+        return commits
+
+    def get_active_branch_changes(self) -> DiffIndex:
+        return self.original_head.commit.diff(
+            f"HEAD~{len(self._get_branch_commits(self.repo.active_branch.path))}"
+        )
 
     def revert_tracked_changes(self, to_revert: DiffIndex):
         self.repo.index.checkout([x.b_path for x in to_revert], force=True)
