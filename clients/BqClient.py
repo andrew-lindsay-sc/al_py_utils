@@ -14,6 +14,7 @@ class BqClient:
     def __init__(self, client_name, skip_instance = False):
         self.project_id = client_name if 'sandbox' in client_name else "soundcommerce-client-"+client_name
         self.client_name = client_name
+        self.instance = None
         if not skip_instance:
             self.instance = bigquery.Client(project=self.project_id)
 
@@ -190,6 +191,7 @@ class BqClient:
         # Currently no divergence in how we handle functions and procs, this may change in the future though
         self._manage_function(operation, file)
 
+    # TODO: Refactor this to use SqlFile
     def manage_object(self, operation: Operation, file):
         """
             (str, str) -> None
