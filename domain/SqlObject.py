@@ -1,5 +1,10 @@
+import json
 from pathlib import Path
+import re
+
+from pyparsing import Generator
 from helpers.StaticMethods import get_bq_path
+from google.cloud.bigquery import SchemaField
 
 class SqlObject:
     def __init__(
@@ -13,7 +18,7 @@ class SqlObject:
         self.dataset = name_parts[1]
         self.object_name = name_parts[2]
 
-        self.object_type = self.get_object_type()
+        self.object_type = self._get_object_type()
 
         # TODO: this needs to handle dev project names
         self.client_name = self.bq_project.split('-')[-1]
@@ -49,20 +54,20 @@ class SqlObject:
     def _init_definition(self):
         try:
             with open(self.file_path, 'r') as f:
-                self._definition = f.read()
-                self._definition = self._definition.replace("${project}", self.project_id)\
-                    .replace("${dataset}", self.dataset)
-                return True
-        except:
-            return False
+                self._definition = f.read()                    
+                
+            self._definition = self._definition.replace("${project}", self.bq_project)\
+                .replace("${dataset}", self.dataset)
+            return True
+        except Exception as error:
+            raise Exception(f"Failed to read definition from file '{self.file_path}', error: {error}")
 
     def _set_definition(self, value: str):
         self._definition = value
 
     def _get_definition(self):
         if len(self._definition) == 0:
-            if not(self._init_definition()):
-                raise Exception(f"Failed to read definition from file '{self.file_path}'")
+            self._init_definition()
             
         return self._definition
 
@@ -75,7 +80,7 @@ class SqlObject:
     def __hash__(self):
         return hash(self.fully_qualified_name)
 
-    def get_object_type(self):
+    def _get_object_type(self):
         # parts = self.object_name.split('.')
         # object_name = parts[2]
         if 'vw_' in self.object_name:
@@ -88,3 +93,16 @@ class SqlObject:
             return 'function'
         else:
             return 'schema'
+
+    def get_schema_fields(self):
+        if self.object_type != 'schema':
+            raise Exception("This method is for schema/tables only.")
+
+        for field in self.definition.split('},\n'):
+            to_load = field if field[-1:] == '}' else field+'}'
+            schema_json = json.loads(to_load)            
+            yield SchemaField(
+                name = schema_json['name'], 
+                field_type = schema_json['type'], 
+                mode = schema_json['mode']
+            ) 

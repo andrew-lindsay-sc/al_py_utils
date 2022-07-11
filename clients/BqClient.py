@@ -65,21 +65,23 @@ class BqClient:
 
         return self._object_definitions
 
-    def _get_object_meta(self, file: str):
-        file_parts = file.split('/')
-        object_name = file_parts[-1].split('.')[0]
-        dataset = file_parts[-3].strip()
-        object_type = file_parts[-2]
-
-        return object_type, dataset, object_name
+    def _create_dataset_if_not_exists(self, dataset: str) -> None:
+        fully_qualified_dataset = f"{self.project_id}.{dataset}"
+        try:
+            self.instance.get_dataset(bigquery.Dataset(fully_qualified_dataset))
+        except NotFound:
+            self.instance.create_dataset(fully_qualified_dataset)
 
     def _manage_view(self, operation, sql_object: SqlObject):
-        to_modify = bigquery.Table(self.path_to_fully_qualified(sql_object))
+        to_modify = bigquery.Table(sql_object.fully_qualified_name)
+        to_modify.view_query = sql_object.definition
 
         if operation == self.Operation.MODIFIED:
+            self._create_dataset_if_not_exists(sql_object.dataset)
+
             # Try to update the table/view
             try:
-                self.instance.get_table(to_modify)
+                to_modify = self.instance.get_table(to_modify)
                 if to_modify.view_query == sql_object.definition:
                     return f"Skipping {sql_object.dataset}.{sql_object.object_name}, definition is already up to date."
 
@@ -101,14 +103,18 @@ class BqClient:
                 return f"{sql_object.object_name} does not exist and will be skipped."
 
     def _manage_table(self, operation: Operation, sql_object: SqlObject):
-        to_modify = bigquery.Table(sql_object.file_path)
+        to_modify = bigquery.Table(sql_object.fully_qualified_name)
+        to_modify.schema = list(sql_object.get_schema_fields())
 
-        if operation == self.Operation.MODIFIED:            
+        if operation == self.Operation.MODIFIED:
+            self._create_dataset_if_not_exists(sql_object.dataset)
+
             # Try to update the table/view
             try:
-                self.instance.get_table(to_modify)
+                to_modify = self.instance.get_table(to_modify)
                 existing_columns = [x.name for x in to_modify.schema]
-                columns_in_file = [x['name'] for x in sql_object.definition]
+                definition_columns = list(sql_object.get_schema_fields())
+                columns_in_file = [x.name for x in definition_columns]
 
                 missing_columns = [x for x in existing_columns if x not in columns_in_file]
                 if len(missing_columns) > 0:
@@ -121,9 +127,9 @@ class BqClient:
                     return f"Table schema already matches for {to_modify.full_table_id}, skipping."
                 else:
                     new_schema = to_modify.schema[:]  # Creates a copy of the schema.
-                    for col in sql_object.definition:
-                        if col['name'] in columns_to_add:
-                            new_schema.append(bigquery.SchemaField(col['name'], col['type'], col['mode']))
+                    for col in definition_columns:
+                        if col.name in columns_to_add:
+                            new_schema.append(col)
 
                     to_modify.schema = new_schema
                     self.instance.update_table(table=to_modify, fields=["schema"])
@@ -131,7 +137,6 @@ class BqClient:
 
             # If it doesn't exist, create it
             except NotFound:
-                to_modify.schema = [bigquery.SchemaField(col['name'], col['type'], col['mode']) for x in sql_object.definition]
                 self.instance.create_table(
                     table=to_modify
                 )                
@@ -141,12 +146,14 @@ class BqClient:
             return f"This utility will not drop tables; no operation has been performed on {sql_object.dataset}.{sql_object.object_name}."
 
     def _manage_function(self, operation, sql_object: SqlObject):
-        to_modify = bigquery.Routine(self.path_to_fully_qualified(sql_object))
+        to_modify = bigquery.Routine(sql_object.fully_qualified_name)
+        to_modify.body = sql_object.definition
 
         if operation == self.Operation.MODIFIED:
+            self._create_dataset_if_not_exists(sql_object.dataset)
             # Try to update the table/view
             try:
-                self.instance.get_routine(to_modify)
+                to_modify = self.instance.get_routine(to_modify)
                 if to_modify.body == sql_object.definition:
                     return f"Skipping {sql_object.dataset}.{sql_object.object_name}, definition is already up to date."
 
@@ -172,25 +179,23 @@ class BqClient:
         self._manage_function(operation, sql_object)
 
     # TODO: Refactor this to use SqlObject
-    def manage_object(self, operation: Operation, sql_object: SqlObject):
+    def manage_object(self, operation: Operation, sql_object: SqlObject) -> str:
         """
             (str, str) -> None
             Performs the specified BQ operation on the specified file.
         """
 
-        if sql_object.object_type == 'table':
-            self._manage_table(operation, sql_object)
+        if sql_object.object_type in ['table', 'schema']:
+            return self._manage_table(operation, sql_object)
         elif sql_object.object_type == 'view':
-            self._manage_view(operation, sql_object)
+            return self._manage_view(operation, sql_object)
         # TODO: Implement Procs and Function
         elif sql_object.object_type == 'function':
-            self._manage_function(operation, sql_object)
+            return self._manage_function(operation, sql_object)
         elif sql_object.object_type == 'procedure':
-            self._manage_proc(operation, sql_object)
+            return  self._manage_proc(operation, sql_object)
         else:
             raise NotImplementedError("Only tables and views are supported at this time")
-
-        return f"({sql_object.object_type}) {sql_object.dataset}.{sql_object.object_name} has been {operation}"
     
     def check_objects_exist(self, objects):
         """
