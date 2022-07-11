@@ -1,5 +1,6 @@
 # This block allows importing from directories above tests
 import os, sys
+from al_py_utils.domain.SqlObject import SqlObject
 p = os.path.abspath('.')
 sys.path.insert(1, p)
 
@@ -32,15 +33,24 @@ class TestBqClient(unittest.TestCase):
         
     def test_get_object_meta(self):
         bq_client = BqClient(self.sandbox_project_id)
-
         test_file_path = get_mono_path() + '/infrastructure/gcloud/client/bq/core/view/vw_client_settings.sql'
         object_type, dataset, object_name = bq_client._get_object_meta(test_file_path)
         self.assertEqual(object_type, 'view')
         self.assertEqual(dataset, 'core')
         self.assertEqual(object_name, 'vw_client_settings')
 
-    def test_manage_view(self):
+    def test_create_delete_view(self):
+        # Process test file
+        test_file_path = get_mono_path() + '/infrastructure/gcloud/client/bq/truthbar/ext/view/vw_inventory.sql'
+        self.assertTrue(os.path.exists(test_file_path), "Test file does not exist.")
+        with open(test_file_path, 'r') as f:
+            definition = f.read()
+
+        #
+        sql_object = SqlObject('soundcommerce-client-truthbar.ext.vw_inventory')
+
         bq_client = BqClient(self.sandbox_project_id)
+
 
 if __name__ == '__main__':
     unittest.main()

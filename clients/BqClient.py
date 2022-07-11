@@ -73,27 +73,17 @@ class BqClient:
 
         return object_type, dataset, object_name
 
-    def _manage_view(self, operation, file):
-        to_modify = bigquery.Table(self.path_to_fully_qualified(file))
-        object_type, dataset, object_name = self._get_object_meta(file)
+    def _manage_view(self, operation, sql_object: SqlObject):
+        to_modify = bigquery.Table(self.path_to_fully_qualified(sql_object))
 
         if operation == self.Operation.MODIFIED:
-            if '_0.sql' in file:
-                # strip out the client name for _0s as we should be using the 
-                #   standardized version
-                file = file.replace(f"{self.client_name}/", "")
-            with open(file, 'r') as f:
-                definition = f.read()
-                definition.replace("${project}", self.project_id)\
-                    .replace("${dataset}", dataset)
-
             # Try to update the table/view
             try:
                 self.instance.get_table(to_modify)
-                if to_modify.view_query == definition:
-                    return f"Skipping {dataset}.{object_name}, definition is already up to date."
+                if to_modify.view_query == sql_object.definition:
+                    return f"Skipping {sql_object.dataset}.{sql_object.object_name}, definition is already up to date."
 
-                to_modify.view_query = definition
+                to_modify.view_query = sql_object.definition
                 self.instance.update_table(
                     table=to_modify, fields=["view_query"]
                 )
@@ -102,27 +92,23 @@ class BqClient:
                 self.instance.create_table(
                     table=to_modify
                 )                
-                return f"({object_type}) {dataset}.{object_name} has been created."
+                return f"({sql_object.object_type}) {sql_object.dataset}.{sql_object.object_name} has been created."
 
         elif operation == self.Operation.DELETED:
             try:
                 self.instance.delete_table(table = to_modify)
             except NotFound:
-                return f"{object_name} does not exist and will be skipped."
+                return f"{sql_object.object_name} does not exist and will be skipped."
 
-    def _manage_table(self, operation, file):
-        to_modify = bigquery.Table(self.path_to_fully_qualified(file))
-        object_type, dataset, object_name = self._get_object_meta(file)
+    def _manage_table(self, operation: Operation, sql_object: SqlObject):
+        to_modify = bigquery.Table(sql_object.file_path)
 
-        if operation == self.Operation.MODIFIED:
-            with open(file, 'r') as f:
-                definition = json.load(f)
-            
+        if operation == self.Operation.MODIFIED:            
             # Try to update the table/view
             try:
                 self.instance.get_table(to_modify)
                 existing_columns = [x.name for x in to_modify.schema]
-                columns_in_file = [x['name'] for x in definition]
+                columns_in_file = [x['name'] for x in sql_object.definition]
 
                 missing_columns = [x for x in existing_columns if x not in columns_in_file]
                 if len(missing_columns) > 0:
@@ -135,7 +121,7 @@ class BqClient:
                     return f"Table schema already matches for {to_modify.full_table_id}, skipping."
                 else:
                     new_schema = to_modify.schema[:]  # Creates a copy of the schema.
-                    for col in definition:
+                    for col in sql_object.definition:
                         if col['name'] in columns_to_add:
                             new_schema.append(bigquery.SchemaField(col['name'], col['type'], col['mode']))
 
@@ -145,32 +131,26 @@ class BqClient:
 
             # If it doesn't exist, create it
             except NotFound:
-                to_modify.schema = [bigquery.SchemaField(col['name'], col['type'], col['mode']) for x in definition]
+                to_modify.schema = [bigquery.SchemaField(col['name'], col['type'], col['mode']) for x in sql_object.definition]
                 self.instance.create_table(
                     table=to_modify
                 )                
-                return f"({object_type}) {dataset}.{object_name} has been created."
+                return f"({sql_object.object_type}) {sql_object.dataset}.{sql_object.object_name} has been created."
 
         elif operation == self.Operation.DELETED:
-            return f"This utility will not drop tables; no operation has been performed on {dataset}.{object_name}."
+            return f"This utility will not drop tables; no operation has been performed on {sql_object.dataset}.{sql_object.object_name}."
 
-    def _manage_function(self, operation, file):
-        to_modify = bigquery.Routine(self.path_to_fully_qualified(file))
-        object_type, dataset, object_name = self._get_object_meta(file)
+    def _manage_function(self, operation, sql_object: SqlObject):
+        to_modify = bigquery.Routine(self.path_to_fully_qualified(sql_object))
 
         if operation == self.Operation.MODIFIED:
-            with open(file, 'r') as f:
-                definition = f.read()
-                definition.replace("${project}", self.project_id)\
-                    .replace("${dataset}", dataset)
-
             # Try to update the table/view
             try:
                 self.instance.get_routine(to_modify)
-                if to_modify.body == definition:
-                    return f"Skipping {dataset}.{object_name}, definition is already up to date."
+                if to_modify.body == sql_object.definition:
+                    return f"Skipping {sql_object.dataset}.{sql_object.object_name}, definition is already up to date."
 
-                to_modify.view_query = definition
+                to_modify.view_query = sql_object.definition
                 self.instance.update_routine(
                     routine=to_modify, fields=["body"]
                 )
@@ -179,40 +159,38 @@ class BqClient:
                 self.instance.create_routine(
                     routine=to_modify
                 )                
-                return f"({object_type}) {dataset}.{object_name} has been created."
+                return f"({sql_object.object_type}) {sql_object.dataset}.{sql_object.object_name} has been created."
 
         elif operation == self.Operation.DELETED:
             try:
                 self.instance.delete_routine(routine = to_modify)
             except NotFound:
-                return f"{object_name} does not exist and will be skipped."
+                return f"{sql_object.object_name} does not exist and will be skipped."
 
-    def _manage_proc(self, operation, file):
+    def _manage_proc(self, operation, sql_object: SqlObject):
         # Currently no divergence in how we handle functions and procs, this may change in the future though
-        self._manage_function(operation, file)
+        self._manage_function(operation, sql_object)
 
-    # TODO: Refactor this to use SqlFile
-    def manage_object(self, operation: Operation, file):
+    # TODO: Refactor this to use SqlObject
+    def manage_object(self, operation: Operation, sql_object: SqlObject):
         """
             (str, str) -> None
             Performs the specified BQ operation on the specified file.
         """
-        object_type, dataset, object_name = self._get_object_meta(file)
-        to_modify = bigquery.Table(self.path_to_fully_qualified(file))
 
-        if object_type == 'table':
-            self._manage_table(operation, file)
-        elif object_type == 'view':
-            self._manage_view(operation, file)
+        if sql_object.object_type == 'table':
+            self._manage_table(operation, sql_object)
+        elif sql_object.object_type == 'view':
+            self._manage_view(operation, sql_object)
         # TODO: Implement Procs and Function
-        elif object_type == 'function':
-            self._manage_function(operation, file)
-        elif object_type == 'procedure':
-            self._manage_proc(operation, file)
+        elif sql_object.object_type == 'function':
+            self._manage_function(operation, sql_object)
+        elif sql_object.object_type == 'procedure':
+            self._manage_proc(operation, sql_object)
         else:
             raise NotImplementedError("Only tables and views are supported at this time")
 
-        return f"({object_type}) {dataset}.{object_name} has been {operation}"
+        return f"({sql_object.object_type}) {sql_object.dataset}.{sql_object.object_name} has been {operation}"
     
     def check_objects_exist(self, objects):
         """

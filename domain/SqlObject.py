@@ -50,6 +50,8 @@ class SqlObject:
         try:
             with open(self.file_path, 'r') as f:
                 self._definition = f.read()
+                self._definition = self._definition.replace("${project}", self.project_id)\
+                    .replace("${dataset}", self.dataset)
                 return True
         except:
             return False
