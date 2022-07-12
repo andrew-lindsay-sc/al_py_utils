@@ -1,4 +1,6 @@
+import re
 from google.cloud import bigquery
+from google.cloud import bigquery_v2
 from google.cloud.exceptions import NotFound
 from domain.SqlObject import SqlObject
 from helpers.PrintColors import *
@@ -146,10 +148,15 @@ class BqClient:
             return f"This utility will not drop tables; no operation has been performed on {sql_object.dataset}.{sql_object.object_name}."
 
     def _manage_function(self, operation, sql_object: SqlObject):
-        to_modify = bigquery.Routine(sql_object.fully_qualified_name)
-        to_modify.body = sql_object.definition
-
+        # TODO: Handle arguments, see https://cloud.google.com/bigquery/docs/samples/bigquery-create-routine#bigquery_create_routine-python
         if operation == self.Operation.MODIFIED:
+            to_modify = bigquery.Routine(
+                routine_ref = sql_object.fully_qualified_name,
+                body = sql_object.definition,
+                type_ = sql_object.routine_type,
+                arguments = sql_object.args,
+                return_type = sql_object.return_type
+            )
             self._create_dataset_if_not_exists(sql_object.dataset)
             # Try to update the table/view
             try:
@@ -157,9 +164,9 @@ class BqClient:
                 if to_modify.body == sql_object.definition:
                     return f"Skipping {sql_object.dataset}.{sql_object.object_name}, definition is already up to date."
 
-                to_modify.view_query = sql_object.definition
-                self.instance.update_routine(
-                    routine=to_modify, fields=["body"]
+                to_modify.body = sql_object.definition
+                self.instance.update_routine( # For some reason you need to specify type_ or the API bombs
+                    routine=to_modify, fields=["body", "type_", "return_type"]
                 )
             # If it doesn't exist, create it
             except NotFound:
@@ -170,7 +177,9 @@ class BqClient:
 
         elif operation == self.Operation.DELETED:
             try:
-                self.instance.delete_routine(routine = to_modify)
+                self.instance.delete_routine(
+                    bigquery.Routine(routine_ref = sql_object.fully_qualified_name)
+                )
             except NotFound:
                 return f"{sql_object.object_name} does not exist and will be skipped."
 

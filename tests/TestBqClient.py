@@ -41,7 +41,8 @@ class TestBqClient(unittest.TestCase):
         test_definition = """select 1 as num, \'a\' as letter"""
         test_file_path = get_bq_path() + '/sandbox/ext/view/vw_unittest_view.sql'
         bq_client = BqClient(self.sandbox_project_id)
-        bq_table = bigquery.Table('soundcommerce-data-sandbox.ext.vw_unittest_view')
+        object_ref = 'soundcommerce-data-sandbox.ext.vw_unittest_view'
+        bq_table = bigquery.Table(object_ref)
 
         self.assertFalse(os.path.exists(test_file_path), "Test file should not exist.")
         # This scope block tests create functionality
@@ -53,7 +54,7 @@ class TestBqClient(unittest.TestCase):
             except Exception as e:
                 self.assertTrue(type(e) == NotFound, "View should not exist at this point")
 
-            sql_object = SqlObject('soundcommerce-data-sandbox.ext.vw_unittest_view')
+            sql_object = SqlObject(object_ref)
             self.assertIsNotNone(sql_object.definition, "Definition should be populated")
             
             bq_client.manage_object(BqClient.Operation.MODIFIED, sql_object)
@@ -73,7 +74,7 @@ class TestBqClient(unittest.TestCase):
             except Exception as e:
                 self.fail("View should exist at this point")
 
-            sql_object = SqlObject('soundcommerce-data-sandbox.ext.vw_unittest_view')
+            sql_object = SqlObject(object_ref)
             self.assertIsNotNone(sql_object.definition, "Definition should be populated")
             
             bq_client.manage_object(BqClient.Operation.MODIFIED, sql_object)
@@ -208,5 +209,150 @@ class TestBqClient(unittest.TestCase):
         except Exception as e:
             self.assertTrue(type(e) == NotFound, "Table should not exist at this point")
 
+    def test_create_modify_delete_table_function(self):
+        # Process test file
+        test_definition = """CREATE OR REPLACE FUNCTION `${project}.${dataset}.fn_unittest`()(
+            with data as (
+                select 3.14 as pi
+            )
+            select 
+                pi, r as radius
+            from data
+            join unnest([3,6,9]) r
+        )"""
+        test_file_path = get_bq_path() + '/sandbox/ext/function/fn_unittest.sql'
+        bq_client = BqClient(self.sandbox_project_id)
+        object_ref = 'soundcommerce-data-sandbox.ext.fn_unittest'
+        bq_table = bigquery.Routine(object_ref)
+
+        self.assertFalse(os.path.exists(test_file_path), "Test file should not exist.")
+        # This scope block tests create functionality
+        with TempFile(test_file_path, test_definition):
+            try:
+                bq_table_details = bq_client.instance.get_routine(bq_table)
+                # We shouldn't actually hit the fail, the expected path is a NotFound exception
+                self.fail("Function should not exist at this point")
+            except Exception as e:
+                self.assertTrue(type(e) == NotFound, "Function should not exist at this point")
+
+            sql_object = SqlObject(object_ref)
+            self.assertIsNotNone(sql_object.definition, "Definition should be populated")
+            
+            bq_client.manage_object(BqClient.Operation.MODIFIED, sql_object)
+
+            live_definition = bq_client.instance.get_routine(bq_table).body
+            self.assertEqual(live_definition, sql_object.definition, "Live definition should match file definition")
+
+        self.assertFalse(os.path.exists(test_file_path), "Test file should not exist.")
+        test_definition = test_definition.replace('radius', 'radius, pi * (r * r) as area')
+
+        # This scope block is intentionally almost identical to test the update functionality
+        with TempFile(test_file_path, test_definition):
+            try:
+                bq_table_details = bq_client.instance.get_routine(bq_table)
+                # We shouldn't actually hit the assertion, the expected path is a NotFound exception
+                self.assertIsNotNone(bq_table_details, "Function should exist at this point")
+            except Exception as e:
+                self.fail("Function should exist at this point")
+
+            sql_object = SqlObject(object_ref)
+            self.assertIsNotNone(sql_object.definition, "Definition should be populated")
+            
+            bq_client.manage_object(BqClient.Operation.MODIFIED, sql_object)
+
+            live_definition = bq_client.instance.get_routine(bq_table).body
+            self.assertEqual(live_definition, sql_object.definition, "Live definition should match file definition")            
+
+        self.assertFalse(os.path.exists(test_file_path), "Test file should not exist.")
+
+        # This scope block tests delete functionality
+        with TempFile(test_file_path, test_definition):
+            try:
+                bq_table_details = bq_client.instance.get_routine(bq_table)
+                # We shouldn't actually hit the assertion, the expected path is a NotFound exception
+                self.assertIsNotNone(bq_table_details, "Function should exist at this point")
+            except Exception as e:
+                self.fail("Function should exist at this point")
+
+            sql_object = SqlObject(object_ref)
+            bq_client.manage_object(BqClient.Operation.DELETED, sql_object)
+
+            try:
+                bq_table_details = bq_client.instance.get_routine(bq_table).body
+                # We shouldn't actually hit the fail, the expected path is a NotFound exception
+                self.fail("Function should not exist at this point")
+            except Exception as e:
+                self.assertTrue(type(e) == NotFound, "Function should not exist at this point")
+
+    def test_create_modify_delete_scalar_function(self):
+        # Process test file
+        test_definition = """CREATE FUNCTION `${project}.${dataset}.fn_AddFourAndDivide`(x INT64, y INT64)
+            RETURNS FLOAT64
+            AS ((x + 4) / y);
+        """
+        test_file_path = get_bq_path() + '/sandbox/ext/function/fn_AddFourAndDivide.sql'
+        bq_client = BqClient(self.sandbox_project_id)
+        object_ref = 'soundcommerce-data-sandbox.ext.fn_AddFourAndDivide'
+        bq_table = bigquery.Routine(object_ref)
+
+        self.assertFalse(os.path.exists(test_file_path), "Test file should not exist.")
+        # This scope block tests create functionality
+        with TempFile(test_file_path, test_definition):
+            try:
+                bq_table_details = bq_client.instance.get_routine(bq_table)
+                # We shouldn't actually hit the fail, the expected path is a NotFound exception
+                self.fail("Function should not exist at this point")
+            except Exception as e:
+                self.assertTrue(type(e) == NotFound, "Function should not exist at this point")
+
+            sql_object = SqlObject(object_ref)
+            self.assertIsNotNone(sql_object.definition, "Definition should be populated")
+            
+            bq_client.manage_object(BqClient.Operation.MODIFIED, sql_object)
+
+            live_definition = bq_client.instance.get_routine(bq_table).body
+            self.assertEqual(live_definition, sql_object.definition, "Live definition should match file definition")
+
+        self.assertFalse(os.path.exists(test_file_path), "Test file should not exist.")
+        test_definition = test_definition.replace('radius', 'radius, pi * (r * r) as area')
+
+        # This scope block is intentionally almost identical to test the update functionality
+        with TempFile(test_file_path, test_definition):
+            try:
+                bq_table_details = bq_client.instance.get_routine(bq_table)
+                # We shouldn't actually hit the assertion, the expected path is a NotFound exception
+                self.assertIsNotNone(bq_table_details, "Function should exist at this point")
+            except Exception as e:
+                self.fail("Function should exist at this point")
+
+            sql_object = SqlObject(object_ref)
+            self.assertIsNotNone(sql_object.definition, "Definition should be populated")
+            
+            bq_client.manage_object(BqClient.Operation.MODIFIED, sql_object)
+
+            live_definition = bq_client.instance.get_routine(bq_table).body
+            self.assertEqual(live_definition, sql_object.definition, "Live definition should match file definition")            
+
+        self.assertFalse(os.path.exists(test_file_path), "Test file should not exist.")
+
+        # This scope block tests delete functionality
+        with TempFile(test_file_path, test_definition):
+            try:
+                bq_table_details = bq_client.instance.get_routine(bq_table)
+                # We shouldn't actually hit the assertion, the expected path is a NotFound exception
+                self.assertIsNotNone(bq_table_details, "Function should exist at this point")
+            except Exception as e:
+                self.fail("Function should exist at this point")
+
+            sql_object = SqlObject(object_ref)
+            bq_client.manage_object(BqClient.Operation.DELETED, sql_object)
+
+            try:
+                bq_table_details = bq_client.instance.get_routine(bq_table).body
+                # We shouldn't actually hit the fail, the expected path is a NotFound exception
+                self.fail("Function should not exist at this point")
+            except Exception as e:
+                self.assertTrue(type(e) == NotFound, "Function should not exist at this point")
+
 if __name__ == '__main__':
-    unittest.main()
+     unittest.main()

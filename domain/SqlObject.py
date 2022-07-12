@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 import re
+from google.cloud.bigquery import RoutineType
+from google.cloud import bigquery, bigquery_v2
 
 from pyparsing import Generator
 from helpers.StaticMethods import get_bq_path
@@ -12,6 +14,9 @@ class SqlObject:
         fully_qualified_name: str,
         definition: str = None
     ):
+        self.return_type = None
+        self.args = list()
+
         self.fully_qualified_name = fully_qualified_name.replace('`','')
         name_parts = self.fully_qualified_name.split('.')
         self.bq_project = name_parts[0]
@@ -23,6 +28,7 @@ class SqlObject:
         # TODO: this needs to handle dev project names
         self.client_name = self.bq_project.split('-')[-1]
         client_root = get_bq_path()
+
         if not (self.object_name[-2:] == '_0' or self.dataset == 'core'):
             client_root += '/' + self.client_name
 
@@ -51,6 +57,22 @@ class SqlObject:
             is_equal &= self_compare_name == obj_compare_name
             return is_equal
 
+    def _parse_args(self):
+        re_match = re.match(r'CREATE.*`.*`\((.*)\)', self._definition)
+        if len(re_match.group(1)) > 0:
+            arguments_text = [x.strip() for x in re_match.group(1).split(',')]
+            if len(arguments_text) > 0:
+                for arg in arguments_text:
+                    parts = arg.split(' ')
+                    self.args.append(
+                        bigquery.RoutineArgument(
+                            name = parts[0].strip(),
+                            data_type = bigquery_v2.types.StandardSqlDataType(
+                                type_kind = parts[1].strip()
+                            ),
+                        )
+                    )
+
     def _init_definition(self):
         try:
             with open(self.file_path, 'r') as f:
@@ -58,6 +80,26 @@ class SqlObject:
                 
             self._definition = self._definition.replace("${project}", self.bq_project)\
                 .replace("${dataset}", self.dataset)
+
+            self.routine_type = self._get_routine_type()
+            
+            # Strip "CREATE" statement as that angers the google
+            if self._definition[0:6] == 'CREATE':
+                if self.object_type in ['function', 'procedure']:
+                    self._parse_args()
+                    if self.routine_type == RoutineType.SCALAR_FUNCTION:
+                        self._definition = re.sub(r'CREATE.+`.+`\(.*\)(.*)', r'\1', self._definition)
+                        re_search = re.search('RETURNS[ \t]+([a-zA-Z0-9]+)(?s:.*?).*AS', self._definition, re.M)
+                        self.return_type = bigquery_v2.types.StandardSqlDataType(
+                                type_kind = re_search.group(1)
+                            )
+                        self._definition = self.definition[re_search.regs[0][-1]:]
+                        if self._definition.strip()[-1] == ';':
+                            self._definition = self._definition.strip()[:-1]
+                    else:
+                        self._definition = re.sub(r'CREATE.+`.+`\(.*\)\((.*)', r'\1', self._definition)
+                        self._definition = self._definition.strip()[:-1]
+
             return True
         except Exception as error:
             raise Exception(f"Failed to read definition from file '{self.file_path}', error: {error}")
@@ -89,10 +131,21 @@ class SqlObject:
             return 'materialized view'
         elif 'proc_' in self.object_name:
             return 'procedure'
-        elif '(' in self.object_name:
+        elif '(' in self.object_name or 'fn_' in self.object_name:
             return 'function'
         else:
             return 'schema'
+
+    def _get_routine_type(self):
+        if self.object_type == 'procedure':
+            return RoutineType.PROCEDURE
+        elif self.object_type == 'function':
+            if 'RETURNS' in self.definition:
+                return RoutineType.SCALAR_FUNCTION
+            else:
+                return RoutineType.TABLE_VALUED_FUNCTION
+        else:
+            return RoutineType.ROUTINE_TYPE_UNSPECIFIED
 
     def get_schema_fields(self):
         if self.object_type != 'schema':
