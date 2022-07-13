@@ -10,8 +10,8 @@ from helpers.StaticMethods import *
 
 class BqTransferClient(BqClient):
     """Helper class (child of BqClient) designed to help with transferconfig operations."""
-    def __init__(self, client_name):
-        BqClient.__init__(self, client_name, True)
+    def __init__(self, client_name, project_name = None):
+        BqClient.__init__(self, client_name = client_name, project_name = project_name)
         self.instance = bigquery_datatransfer.DataTransferServiceClient()
         self.parent = self.instance.common_project_path(self.project_id)
         self._transfer_configs = self.instance.list_transfer_configs(parent=self.parent)

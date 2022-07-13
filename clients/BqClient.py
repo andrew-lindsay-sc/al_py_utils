@@ -13,8 +13,10 @@ class BqClient:
         DELETED = 2
 
     """Helper class to wrap bigQuery client initialization and operations"""
-    def __init__(self, client_name, skip_instance = False):
-        self.project_id = client_name if 'sandbox' in client_name else "soundcommerce-client-"+client_name
+    def __init__(self, client_name, project_id = None, skip_instance = False):
+        if project_id is None:
+            project_id = client_name if 'sandbox' in client_name else "soundcommerce-client-"+client_name
+        self.project_id = project_id
         self.client_name = client_name
         self.instance = None
         if not skip_instance:

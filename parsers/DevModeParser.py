@@ -12,10 +12,6 @@ class DevModeParser(FileParser):
             None -> dict(str, dict(str,list<str>))
             Transforms the dictionary of changed_files to be broken up by client.
         """
-        # gc = GitClient(get_mono_path())
-        # status = gc.get_active_branch_changes()
-        # parents_list = list([tuple(x.hexsha, x.parents) for x in gc.original_head.commit.iter_parents()])
-        
         if self._files_by_client:
             return self._files_by_client
         else:
@@ -34,4 +30,16 @@ class DevModeParser(FileParser):
                 elif diff.b_path[-4:] == '.sql':
                     self._files_by_client[client][BqClient.Operation.MODIFIED].add(mono_path+'/'+diff.b_path)
 
+            # Apply global changes to all modified clients, then remove the global node
+            #   only do this is there are modified clients
+            if 'global' in self._files_by_client and len(self._files_by_client.keys()) > 1:
+                for diff in self._files_by_client['global']:
+                    for key, value in self._files_by_client.items():
+                        if key == 'global':
+                            continue
+                        else:
+                            value.add(diff)
+            
+                self._files_by_client.pop('global')
+                        
             return self._files_by_client

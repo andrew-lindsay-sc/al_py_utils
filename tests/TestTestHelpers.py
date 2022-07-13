@@ -8,7 +8,7 @@ import unittest
 from helpers.TestHelpers import TempFile
 
 class TestTestHelpers(unittest.TestCase):
-    def test_existing_directory(self):
+    def test_tempfile_existing_directory(self):
         test_path = get_bq_path()+'/core/view/vw_unit_testing.sql'
         test_file_content = 'select 1 as num, \'a\' as ch'
 
@@ -27,7 +27,7 @@ class TestTestHelpers(unittest.TestCase):
         self.assertTrue(os.path.exists(test_dir), "Dir should exist")
         self.assertFalse(os.path.exists(test_path), "File should not exist again")        
 
-    def test_non_existing_directory(self):
+    def test_tempfile_non_existing_directory(self):
         test_path = get_bq_path()+'/core/view/new_dir/vw_unit_testing.sql'
         test_file_content = 'select 1 as num, \'a\' as ch'
 

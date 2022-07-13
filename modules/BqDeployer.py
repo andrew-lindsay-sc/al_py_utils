@@ -17,9 +17,11 @@ class BqDeployer(DevToolsModule):
         FILE = 3
         DEVELOPMENT = 4
 
-    def __init__(self, mode: Mode, fetch_files_from: str, client_list = ''):
+    def __init__(self, mode: Mode, fetch_files_from: str, client_list = '', project_id = None):
         self._mode = mode
         self._git = GitClient(get_mono_path())
+        # If Project id is specified, this deployer will only run against one project
+        self._project_format = project_id if project_id else "soundcommerce-client-{client}"
         
         # Use master in all but development mode
         if self._mode != self.Mode.DEVELOPMENT:
@@ -35,6 +37,11 @@ class BqDeployer(DevToolsModule):
             self._parser = CsvFileParser(fetch_files_from)   
         elif mode == self.Mode.DEVELOPMENT:
             self._parser = DevModeParser(self._git.get_active_branch_changes())
+            re_match = re.match(r'(ACC-[0-9]+)', self._git.original_branch)
+            if not re_match and not project_id:
+                raise Exception("Branch name is not the standard format, to use dev mode with this branch also specify -p/--project_id")
+            elif not project_id: #project_id trumps all as a manual override
+                self._project_format = "dev-{client}-"+re_match.group(1)
 
         if len(self._parser.files_by_client) == 0:
             print("No SQL files found in provided source, exiting...")
@@ -87,7 +94,7 @@ class BqDeployer(DevToolsModule):
                 continue
 
             print(f"Deploying {client}...")
-            bq_instance = BqDeploymentClient(client)
+            bq_instance = BqDeploymentClient(client, self._project_format.replace("{client}", client))
 
             bq_instance.deploy_files(operation[BqClient.Operation.MODIFIED], BqClient.Operation.MODIFIED)
             bq_instance.deploy_files(operation[BqClient.Operation.DELETED], BqClient.Operation.DELETED)

@@ -1,5 +1,4 @@
 # This block allows importing from directories above tests
-import json
 import os, sys
 from typing import Sequence
 p = os.path.abspath('.')

@@ -17,11 +17,13 @@ def prepare_args(parser):
         '-c', '--clients', help='(Optional) Restrict clients to be modified to the specified list (e.g. "truthbar, rainbow2"')
     parser.add_argument(
         '-d', '--dev', action='store_true', help='(Optional) If specified, changes will be deployed to dev projects only. If changes are only to non-client objects, -c/--clients is required.')
+    parser.add_argument(
+        '-p', '--project_id', help='(Optional) Specify an override project_id to deploy to. Used by Dev Mode when the project cannot be determined based on branch name.')
     # TODO: Development Mode Considerations
-    #   - Do not globally apply core/ext updates
-    #   - Allow manual specification of project
-    #   - Logic to switch to dev projects
-    #   - Resolution of relevant clients, error if impossible
+    #   - Do not globally apply core/ext updates DONE
+    #   - Allow manual specification of project DONE
+    #   - Logic to switch to dev projects DONE
+    #   - Resolution of relevant clients, error if impossible DONE
 
 def validate_args(args):
     if (not (args.sha or args.file)):
@@ -55,7 +57,7 @@ def main():
     else:
         mode = BqDeployer.Mode.EXAMPLE
 
-    deployer = BqDeployer(mode, fetch_files_from, args.c)
+    deployer = BqDeployer(mode, fetch_files_from, args.c, args.p)
     deployer.execute(is_dry_run = not args.go)
 
 if __name__ == "__main__":

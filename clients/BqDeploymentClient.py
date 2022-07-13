@@ -5,8 +5,8 @@ from anytree import Node, RenderTree
 
 class BqDeploymentClient(BqClient):
     """Helper class (child of BqClient) designed to help with deployment to BQ."""
-    def __init__(self, client_name):
-        BqClient.__init__(self, client_name)
+    def __init__(self, client_name, project_name = None):
+        BqClient.__init__(self, client_name = client_name, project_name = project_name)
         self.before_state = self.get_views_and_tables()
 
     def _get_dependencies(self, sql_object: SqlObject) -> set[str]:
