@@ -63,15 +63,19 @@ class TestBqDeployer(unittest.TestCase):
            
         git.switch_to(deployer._git.original_head)
 
+    # TODO: Print only method, not testing for now
     def test_print_file_info(self):
         pass
 
+    # TODO: Print only method, not testing for now
     def test_report_files(self):
         pass
 
+    # TODO: Effects changes in BQ, unsure whether I want to unit test this
     def test_deploy_changes(self):
         pass
 
+    # TODO
     def test_execute(self):
         pass
 
