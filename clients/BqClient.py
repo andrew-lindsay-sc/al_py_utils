@@ -20,6 +20,10 @@ class BqClient:
         if not skip_instance:
             self.instance = bigquery.Client(project=self.project_id)
 
+    def __del__(self):
+        if self.instance:
+            self.instance._http.close()
+
     all_tables_and_views_query = """
         with data as (
             SELECT concat(table_schema, '.', table_name) as full_name, table_schema
