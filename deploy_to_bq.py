@@ -25,7 +25,7 @@ def prepare_args(parser):
     #   - Logic to switch to dev projects DONE
     #   - Resolution of relevant clients, error if impossible DONE
 
-def validate_args(args):
+def validate_args(args) -> None:
     if (not (args.sha or args.file)):
         print_info(f"Neither -sha or -file were specified, generating example file.")
     if (args.sha and args.file):

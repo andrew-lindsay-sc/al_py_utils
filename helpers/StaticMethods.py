@@ -17,6 +17,13 @@ def get_bq_path():
     """
     return get_mono_path()+'/infrastructure/gcloud/client/bq'
 
+def get_dev_tools_path():
+    """
+        (None) -> Str
+        Returns the default path for the dev tools folder in the mono repo
+    """
+    return get_mono_path()+'/tools/src/dev'
+
 def get_all_clients(ignore_clients_string = ''):
     """
         (Str(optional)) -> list<str>

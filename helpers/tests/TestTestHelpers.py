@@ -1,6 +1,8 @@
-# This block allows importing from directories above tests
+# This block allows importing as if we were running at the root level
 import os, sys
-p = os.path.abspath('.')
+from pathlib import Path
+p = f"{str(Path.home())}/Projects/mono/infrastructure/gcloud/client/bq/tools/src/dev"
+p = f"{str(Path.home())}/util/al_py_utils"
 sys.path.insert(1, p)
 
 from helpers.StaticMethods import get_bq_path
