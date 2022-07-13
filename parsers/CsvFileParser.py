@@ -9,6 +9,7 @@ class CsvFileParser(FileParser):
         self.file = file
         if len(self.file) > 0 and not os.path.exists(self.file):
             raise FileNotFoundError(self.file)
+        super().__init__()
 
     def print_example_file(self):
         print("client_name, operation, object_name")
@@ -23,7 +24,7 @@ class CsvFileParser(FileParser):
             content = infile.read()
             lines = content.split('\n')
             header_skipped = False
-            for line in content.split('\n'):
+            for line in lines:
                 if not header_skipped and "client_name" in lines[0]:
                     header_skipped = True
                     continue
@@ -37,7 +38,7 @@ class CsvFileParser(FileParser):
                     clean_columns.append(c.replace('"','').strip())
 
                 client_name = clean_columns[0]
-                operation = clean_columns[1]
+                operation = BqClient.Operation.DELETED if clean_columns[1] == 'deleted' else BqClient.Operation.MODIFIED
                 full_object_name = clean_columns[2]
                 dataset = full_object_name.split('.')[0]
                 object_name = full_object_name.split('.')[1]
@@ -55,3 +56,6 @@ class CsvFileParser(FileParser):
                 (files_by_client[client_name])[operation].append(file_path)
 
         return files_by_client
+
+    def _parse_changed_files(self):
+        return super()._parse_changed_files()

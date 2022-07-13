@@ -24,7 +24,7 @@ class BqDeployer(DevToolsModule):
         self._project_format = project_id if project_id else "soundcommerce-client-{client}"
         
         # Use master in all but development mode
-        if self._mode != self.Mode.DEVELOPMENT:
+        if self._mode not in [self.Mode.DEVELOPMENT, self.Mode.EXAMPLE]:
             self._git.switch_to(self._git.master)
 
         if mode == self.Mode.EXAMPLE:
@@ -47,7 +47,13 @@ class BqDeployer(DevToolsModule):
             print("No SQL files found in provided source, exiting...")
         else:
             self._clients = arg_to_list(client_list)
+    
+    def __enter__(self):
+        return self
 
+    def __exit__(self, *args):
+        del self
+        
     def _print_file_info(self, files, operation):
         """
             Print handler which displays a list of files and the operation done to them.
@@ -85,7 +91,7 @@ class BqDeployer(DevToolsModule):
 
         print(f"Total files to be deployed: {file_count}")
 
-    def _deploy_commit(self):
+    def _deploy_changes(self):
         """
             Orchestrates deployment of all identified BQ modifications in the commit.
         """
@@ -107,7 +113,7 @@ class BqDeployer(DevToolsModule):
             
         self._report_files()
         if not is_dry_run:
-            self._deploy_commit()
+            self._deploy_changes()
         else:
             print_info(f"BqDeployer.deploy received is_dry_run, no changes will be made, exiting...")
             return True

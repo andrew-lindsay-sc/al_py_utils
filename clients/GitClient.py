@@ -1,5 +1,5 @@
 import os
-from git import DiffIndex, Repo, Commit
+from git import DiffIndex, Head, Repo, Commit
 from helpers.StaticMethods import get_mono_path
 
 class GitClient:
@@ -12,9 +12,16 @@ class GitClient:
         self.base_path = base_path
         self.repo = self._get_repo()
         self.original_head = self.repo.active_branch
-        self.original_branch = self.original_head.path.replace('refs/heads/','')
         self.master = self.repo.heads.master
         self.origin = self._get_origin()
+
+    @property
+    def original_branch(self):
+        return self.original_head.path.replace('refs/heads/','')
+
+    @property
+    def active_branch(self) -> str:
+        return self.repo.active_branch.path.replace('refs/heads/','')
 
     def _get_repo(self):
         """
@@ -44,14 +51,13 @@ class GitClient:
         """
         return list(filter(lambda r: r.name == 'origin', self.repo.remotes))[0]
 
-    def switch_to(self, head):
+    def switch_to(self, head: Head):
         """
             (Head) -> None
             Switch to the provided head after fetching from origin.
         """
         self.origin.fetch()
-        head.checkout()  # checkout local "master" to working tree
-        self.origin.pull()
+        head.checkout()
 
     # I'm sure i'm doing this the hard way but I can't find an easier one
     def _get_branch_commits(self, ref_name: str) -> list[Commit]:
@@ -82,3 +88,21 @@ class GitClient:
         mono_path = get_mono_path()        
         for file in to_revert:
             os.remove(f"{mono_path}/{file}")
+
+    # def create_branch(self, branch_name: str, source_head: Head = None) -> Head:
+    #     new_head = Head(self.repo, f'refs/heads/{branch_name}')
+    #     self.repo.heads.append(new_head)
+    #     return new_head
+
+    def checkout_branch(self, branch_shorthand: str, create_if_needed: bool = False):
+        matches = [x for x in self.repo.heads if branch_shorthand in x.path]
+        if len(matches) > 1:
+            raise Exception(f"Multiple candidates for \"{branch_shorthand}\" found, be more specific.")
+        elif len(matches) == 0:
+            if not create_if_needed:
+                raise Exception(f"Branch {branch_shorthand} not found.")
+            else:
+                new_head = self.repo.create_head(branch_shorthand)
+                self.switch_to(new_head)
+        else:
+            self.switch_to(matches[0])

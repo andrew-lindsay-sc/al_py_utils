@@ -6,7 +6,7 @@ from clients.BqClient import *
 class CommitFileParser(FileParser):
     def __init__(self, commit: Commit):
         self._commit = commit
-        self.changed_files = self._parse_changed_files()
+        super().__init__()
 
     def _parse_changed_files(self):
         """

@@ -117,7 +117,7 @@ def is_quoted(text):
 
 def extract_client_from_path(path: Path) -> str:
     try:
-        client = path.parts[path.parts.index('bq')+1]
+        client = str(path.parts[path.parts.index('bq')+1])
         client if client != 'bq' else 'global'
     except:
         return 'invalid path'

@@ -1,3 +1,4 @@
+import copy
 from git import DiffIndex
 from parsers.abstracts.FileParser import FileParser
 from clients.BqClient import *
@@ -6,6 +7,7 @@ class DevModeParser(FileParser):
     def __init__(self, diffs: DiffIndex):
         self._diffs = diffs
         self._files_by_client = None
+        super().__init__()
 
     def parse_clients(self):
         """
@@ -20,9 +22,9 @@ class DevModeParser(FileParser):
             mono_path = get_mono_path()
 
             for diff in self._diffs:
-                client = extract_client_from_path(diff.a_path if diff.change_type == 'D' else diff.b_path)
+                client = extract_client_from_path(Path(diff.a_path if diff.change_type == 'D' else diff.b_path))
                 if client not in self._files_by_client:
-                    self._files_by_client[client] = changes[:]
+                    self._files_by_client[client] = copy.deepcopy(changes)
 
                 # Include renames so that we clean up after ourselves
                 if diff.change_type in ['D', 'R'] and diff.a_path[-4:] == '.sql':
@@ -43,3 +45,6 @@ class DevModeParser(FileParser):
                 self._files_by_client.pop('global')
                         
             return self._files_by_client
+
+    def _parse_changed_files(self):
+        return super()._parse_changed_files()
